@@ -87,6 +87,12 @@ type PhResolver = (type?: string, idx?: string) => XmlNode | undefined;
 /** 依 placeholder 型別取得繼承的預設字級（百分點，如 1400=14pt）；無則 undefined */
 type DefaultSizeResolver = (phType?: string) => number | undefined;
 
+/** schemeClr 值（如 tx1/accent1）→ 實際色碼（不含 #）；無則 undefined */
+type SchemeResolver = (val: string) => string | undefined;
+
+/** 依 placeholder 型別取得繼承的預設文字色（不含 #）；無則 undefined */
+type DefaultColorResolver = (phType?: string) => string | undefined;
+
 // placeholder type 別名群組（slide 與 layout 的 type 未必字面相同）
 const TITLE_TYPES = new Set(['title', 'ctrTitle']);
 const BODY_TYPES = new Set(['body', 'subTitle']);
@@ -332,6 +338,105 @@ export class ConvertPptService implements ConvertPptUseCase {
     };
   }
 
+  /** 讀 theme `<a:clrScheme>` 各 slot → 色碼（srgbClr 優先，否則 sysClr@lastClr） */
+  private async readClrScheme(
+    zip: JSZip,
+    themePath: string | undefined,
+  ): Promise<Record<string, string>> {
+    if (!themePath) return {};
+    const doc = await this.readXml(zip, themePath);
+    const scheme = (
+      (doc?.['a:theme'] as XmlNode | undefined)?.['a:themeElements'] as
+        | XmlNode
+        | undefined
+    )?.['a:clrScheme'] as XmlNode | undefined;
+    if (!scheme) return {};
+    const slots = [
+      'dk1',
+      'lt1',
+      'dk2',
+      'lt2',
+      'accent1',
+      'accent2',
+      'accent3',
+      'accent4',
+      'accent5',
+      'accent6',
+      'hlink',
+      'folHlink',
+    ];
+    const out: Record<string, string> = {};
+    for (const slot of slots) {
+      const node = scheme[`a:${slot}`] as XmlNode | undefined;
+      if (!node) continue;
+      const srgb = (node['a:srgbClr'] as XmlNode | undefined)?.['@_val'];
+      const sys = (node['a:sysClr'] as XmlNode | undefined)?.['@_lastClr'];
+      const c = srgb ?? sys;
+      if (c) out[slot] = String(c);
+    }
+    return out;
+  }
+
+  /** 讀 master `<p:clrMap>`：內容用色名（tx1/bg1…）→ 主題 slot（dk1/lt1…） */
+  private async readClrMap(
+    zip: JSZip,
+    masterPath: string | undefined,
+  ): Promise<Record<string, string>> {
+    if (!masterPath) return {};
+    const doc = await this.readXml(zip, masterPath);
+    const clrMap = (doc?.['p:sldMaster'] as XmlNode | undefined)?.[
+      'p:clrMap'
+    ] as XmlNode | undefined;
+    if (!clrMap) return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(clrMap)) {
+      if (k.startsWith('@_')) out[k.slice(2)] = String(v);
+    }
+    return out;
+  }
+
+  /** schemeClr 值 → 色碼：tx1/bg1… 經 clrMap 轉 slot；dk1/lt1… 直接查色盤 */
+  private resolveSchemeColor(
+    val: string,
+    clrMap: Record<string, string>,
+    clrScheme: Record<string, string>,
+  ): string | undefined {
+    const slot = clrMap[val] ?? val;
+    return clrScheme[slot] ?? clrScheme[val];
+  }
+
+  /** 讀 master `<p:txStyles>` 各樣式 lvl1 的 `defRPr` 顏色（解析為色碼） */
+  private async readTxStyleColors(
+    zip: JSZip,
+    masterPath: string | undefined,
+    resolveScheme: SchemeResolver,
+  ): Promise<{ title?: string; body?: string; other?: string }> {
+    if (!masterPath) return {};
+    const doc = await this.readXml(zip, masterPath);
+    const txStyles = (doc?.['p:sldMaster'] as XmlNode | undefined)?.[
+      'p:txStyles'
+    ] as XmlNode | undefined;
+    if (!txStyles) return {};
+    const colorOf = (node: XmlNode | undefined): string | undefined => {
+      const defRPr = (node?.['a:lvl1pPr'] as XmlNode | undefined)?.[
+        'a:defRPr'
+      ] as XmlNode | undefined;
+      const solidFill = defRPr?.['a:solidFill'] as XmlNode | undefined;
+      if (!solidFill) return undefined;
+      const srgb = (solidFill['a:srgbClr'] as XmlNode | undefined)?.['@_val'];
+      if (srgb) return String(srgb);
+      const scheme = (solidFill['a:schemeClr'] as XmlNode | undefined)?.[
+        '@_val'
+      ];
+      return scheme ? resolveScheme(String(scheme)) : undefined;
+    };
+    return {
+      title: colorOf(txStyles['p:titleStyle'] as XmlNode | undefined),
+      body: colorOf(txStyles['p:bodyStyle'] as XmlNode | undefined),
+      other: colorOf(txStyles['p:otherStyle'] as XmlNode | undefined),
+    };
+  }
+
   /** 取形狀的 placeholder type/idx（無則 undefined） */
   private phOf(sp: XmlNode): { type?: string; idx?: string } | undefined {
     const ph = (
@@ -439,6 +544,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         cy,
         () => undefined,
         () => undefined,
+        () => undefined,
+        () => undefined,
       );
       if (element?.text) parts.push(html);
     }
@@ -487,6 +594,27 @@ export class ConvertPptService implements ConvertPptUseCase {
       return txStyles.other;
     };
 
+    // 主題色盤：master <p:clrMap> + theme <a:clrScheme>，解析 schemeClr → 實際色碼
+    const themePath = masterPath
+      ? await this.resolveRelByType(zip, masterPath, 'theme')
+      : undefined;
+    const clrScheme = await this.readClrScheme(zip, themePath);
+    const clrMap = await this.readClrMap(zip, masterPath);
+    const resolveScheme: SchemeResolver = (val) =>
+      this.resolveSchemeColor(val, clrMap, clrScheme);
+
+    // 繼承色：run 無自身色時，依 placeholder 型別自 master txStyles 取色
+    const txColors = await this.readTxStyleColors(
+      zip,
+      masterPath,
+      resolveScheme,
+    );
+    const resolveDefaultColor: DefaultColorResolver = (phType) => {
+      if (phType && TITLE_TYPES.has(phType)) return txColors.title;
+      if (phType && BODY_TYPES.has(phType)) return txColors.body;
+      return txColors.other;
+    };
+
     const sld = doc?.['p:sld'] as XmlNode | undefined;
     const cSld = sld?.['p:cSld'] as XmlNode | undefined;
     const spTree = cSld?.['p:spTree'] as XmlNode | undefined;
@@ -517,6 +645,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         cy,
         resolvePh,
         resolveDefaultSize,
+        resolveScheme,
+        resolveDefaultColor,
         elements,
         htmlParts,
       );
@@ -567,6 +697,8 @@ export class ConvertPptService implements ConvertPptUseCase {
     cy: number,
     resolvePh: PhResolver,
     resolveDefaultSize: DefaultSizeResolver,
+    resolveScheme: SchemeResolver,
+    resolveDefaultColor: DefaultColorResolver,
     elements: InventoryElement[],
     htmlParts: string[],
   ): Promise<void> {
@@ -583,6 +715,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         cy,
         resolvePh,
         resolveDefaultSize,
+        resolveScheme,
+        resolveDefaultColor,
       );
       if (element) {
         elements.push(element);
@@ -616,6 +750,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         cy,
         resolvePh,
         resolveDefaultSize,
+        resolveScheme,
+        resolveDefaultColor,
         elements,
         htmlParts,
       );
@@ -682,6 +818,8 @@ export class ConvertPptService implements ConvertPptUseCase {
     cy: number,
     resolvePh: PhResolver,
     resolveDefaultSize: DefaultSizeResolver,
+    resolveScheme: SchemeResolver,
+    resolveDefaultColor: DefaultColorResolver,
   ): { html: string; element: InventoryElement | null } {
     const spPr = sp['p:spPr'] as XmlNode | undefined;
     const txBody = sp['p:txBody'] as XmlNode | undefined;
@@ -694,6 +832,8 @@ export class ConvertPptService implements ConvertPptUseCase {
     const pos = this.positionStyle(xfrm, cx, cy);
     // 無自身 sz 的文字以此為基準字級（依 ph 型別繼承 master txStyles，否則退預設）
     const baseSize = resolveDefaultSize(ph?.type) ?? DEFAULT_FONT_SIZE;
+    // 無自身色的文字以此為預設色（依 ph 型別繼承 master txStyles）
+    const defaultColor = resolveDefaultColor(ph?.type);
     const fill = solidFillColor(spPr);
     const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);
@@ -722,7 +862,7 @@ export class ConvertPptService implements ConvertPptUseCase {
       const spans = runs.map((r) => {
         const t = textOf(r['a:t']);
         plainParts.push(t);
-        return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx)}">${escapeHtml(t)}</span>`;
+        return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx, resolveScheme, defaultColor)}">${escapeHtml(t)}</span>`;
       });
       return `<p style="margin:0;${alignStyle}${lineHeightStyle}${indentStyle}">${bullet}${spans.join('')}</p>`;
     });
@@ -856,7 +996,12 @@ export class ConvertPptService implements ConvertPptUseCase {
     return `left:${round((x / cx) * 100)}%;top:${round((y / cy) * 100)}%;width:${round((w / cx) * 100)}%;height:${round((h / cy) * 100)}%;`;
   }
 
-  private runStyle(rPr: XmlNode | undefined, cx: number): string {
+  private runStyle(
+    rPr: XmlNode | undefined,
+    cx: number,
+    resolveScheme: SchemeResolver,
+    defaultColor?: string,
+  ): string {
     const parts: string[] = [];
     if (rPr?.['@_b'] === '1' || rPr?.['@_b'] === 1)
       parts.push('font-weight:bold;');
@@ -866,10 +1011,23 @@ export class ConvertPptService implements ConvertPptUseCase {
       parts.push('text-decoration:underline;');
     const sz = Number(rPr?.['@_sz']);
     if (sz) parts.push(`font-size:${this.fontCqw(sz, cx)}cqw;`);
-    const solidFill = rPr?.['a:solidFill'] as XmlNode | undefined;
-    const srgb = solidFill?.['a:srgbClr'] as XmlNode | undefined;
-    if (srgb?.['@_val']) parts.push(`color:#${String(srgb['@_val'])};`);
+    // 色：run srgbClr → schemeClr（主題色）→ placeholder 繼承色
+    const color = this.runColor(rPr, resolveScheme) ?? defaultColor;
+    if (color) parts.push(`color:#${color};`);
     return parts.join('');
+  }
+
+  /** 解析 run 自身顏色：srgbClr 直接用、schemeClr 經主題色盤解析；無則 undefined */
+  private runColor(
+    rPr: XmlNode | undefined,
+    resolveScheme: SchemeResolver,
+  ): string | undefined {
+    const solidFill = rPr?.['a:solidFill'] as XmlNode | undefined;
+    if (!solidFill) return undefined;
+    const srgb = (solidFill['a:srgbClr'] as XmlNode | undefined)?.['@_val'];
+    if (srgb) return String(srgb);
+    const scheme = (solidFill['a:schemeClr'] as XmlNode | undefined)?.['@_val'];
+    return scheme ? resolveScheme(String(scheme)) : undefined;
   }
 
   // CJK 字型 fallback：替代字型行高貼近微軟正黑體，降低中文文字溢出原框

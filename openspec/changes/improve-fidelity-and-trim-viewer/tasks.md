@@ -22,9 +22,9 @@
 
 ## 4. 文字繼承色與主題色還原（引擎，TDD）
 
-- [ ] 4.1 spec 合成 fixture：含 theme `clrScheme` + master `clrMap`，文字用 `schemeClr`，以及 run 無色但 master `txStyles` 定義色的情形；斷言輸出顏色正確；跑到 RED
-- [ ] 4.2 實作：讀 `ppt/theme/theme*.xml` `clrScheme` 與 master `<p:clrMap>` 建 `schemeClr→#RRGGBB` 對應；解析序：run solidFill（srgbClr/schemeClr）→ placeholder 型別自 master `txStyles` 取色 → 預設；`srgbClr` 行為不變
-- [ ] 4.3 triad 全綠後勾選並提交（fix: 還原文字繼承色與主題色，避免變黑）
+- [x] 4.1 spec 合成 fixture：含 theme `clrScheme` + master `clrMap`，文字用 `schemeClr`，以及 run 無色但 master `txStyles` 定義色的情形；斷言輸出顏色正確；跑到 RED
+- [x] 4.2 實作：讀 `ppt/theme/theme*.xml` `clrScheme` 與 master `<p:clrMap>` 建 `schemeClr→#RRGGBB` 對應；解析序：run solidFill（srgbClr/schemeClr）→ placeholder 型別自 master `txStyles` 取色 → 預設；`srgbClr` 行為不變
+- [x] 4.3 triad 全綠後勾選並提交（fix: 還原文字繼承色與主題色，避免變黑）
 
 ## 5. 表格保真度（引擎，TDD）
 
