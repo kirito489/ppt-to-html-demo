@@ -1,7 +1,7 @@
 {
   "name": "@app/api",
   "version": "0.0.1",
-  "description": "NestJS + Express + Prisma with Hexagonal Architecture",
+  "description": "PPT→HTML 轉換後端（NestJS 六角架構 + Prisma；含排程攝取與準確率計算）",
   "author": "",
   "private": true,
   "license": "ISC",

@@ -4,6 +4,18 @@ Guidance for Claude Code when working in this repository. **Architecture, tech s
 
 ---
 
+## Project Context
+
+This repo is **ppt-shift-html-demo** — a PPT→HTML conversion demo, stripped down from a hexagonal NestJS admin template. It periodically pulls `.pptx` from a "shared drive" (mocked as a local folder under `apps/api/storage/incoming/`), converts them with a **pure-JS engine** (`jszip` + `fast-xml-parser`, no LLM / external service) into editor-safe, **non-reflowing** HTML plus accuracy metrics, then disposes the source.
+
+- **Removed** from the original template (do not reintroduce unless asked): RBAC (roles/permissions, Permissions/Roles guards), member CRUD, security (IP allow/deny list, account lock), firebase/s3/email/recaptcha, password reset/policy.
+- **Kept**: simplified auth (login/refresh/logout) + `JwtAuthGuard`, Redis (token blacklist / member-context cache / throttler), FeatureFlag, AuthLog, SystemLog, SessionIdle, health.
+- **Core feature**: `apps/api/src/application/service/ppt/` (engine + ingestion), `adapter/out/ppt/` (local-folder source), `adapter/in/scheduler/` (dynamic cron), `adapter/out/persistence/{article,conversion-job}/`, and frontend `apps/web/src/routes/{articles,jobs}/`.
+
+See `openspec/project.md` for full architecture; the implemented change is archived at `openspec/changes/archive/2026-06-05-ppt-to-html-demo/`.
+
+---
+
 ## Session Start Checklist
 
 At the start of every new session:

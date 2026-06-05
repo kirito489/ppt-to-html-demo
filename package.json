@@ -1,7 +1,7 @@
 {
-  "name": "hexagonal-monorepo",
+  "name": "ppt-shift-html-demo",
   "version": "0.0.1",
-  "description": "Hexagonal NestJS backend + React admin monorepo",
+  "description": "PPT 轉 HTML Demo — 定時抓取公槽 PPT、轉成不跑版 HTML 並提供準確率（NestJS + React monorepo）",
   "private": true,
   "license": "ISC",
   "packageManager": "pnpm@11.0.8",

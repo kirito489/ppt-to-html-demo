@@ -1,9 +1,9 @@
 openapi: 3.0.0
 info:
-  title: Hexagonal NestJS API
+  title: PPT 轉 HTML Demo API
   version: 1.0.0
   description: |
-    Hexagonal Architecture NestJS + Express API 文件
+    定時抓取公槽 PPT、轉成不跑版 HTML 並提供準確率的後端 API（NestJS 六角架構）
 servers:
   - url: 'http://localhost:3000/api'
     description: 本地開發環境
