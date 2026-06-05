@@ -175,4 +175,40 @@ describe('Article E2E', () => {
       expect(Array.isArray(body.data.items)).toBe(true);
     });
   });
+
+  describe('POST /api/articles/upload', () => {
+    it('無 JWT → 401', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/articles/upload')
+        .attach('file', Buffer.from('fake-pptx'), 'demo.pptx');
+      expect(res.status).toBe(401);
+    });
+
+    it('有效 .pptx → 200 + 回存入檔名（不轉換）', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/articles/upload')
+        .set('authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-pptx'), 'demo.pptx');
+
+      expect(res.status).toBe(200);
+      const filename = (res.body as { data: { filename: string } }).data
+        .filename;
+      expect(filename).toMatch(/\.pptx$/);
+    });
+
+    it('非 .pptx → 400', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/articles/upload')
+        .set('authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('not pptx'), 'demo.txt');
+      expect(res.status).toBe(400);
+    });
+
+    it('缺少檔案 → 400', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/articles/upload')
+        .set('authorization', `Bearer ${token}`);
+      expect(res.status).toBe(400);
+    });
+  });
 });

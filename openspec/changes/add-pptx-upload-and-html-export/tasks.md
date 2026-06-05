@@ -24,9 +24,9 @@
 
 ## 6. 測試
 
-- [ ] 6.1 `UploadPptService` 單元測試（呼叫 source.save、回傳存入檔名）
-- [ ] 6.2 `article.e2e` 新增上傳案例（成功 200 回 filename / 未登入 401 / 非 pptx 400）
-- [ ] 6.3 `pnpm typecheck && pnpm lint && pnpm test`（含 e2e）全綠
+- [x] 6.1 `UploadPptService` 單元測試（呼叫 source.save、回傳存入檔名）
+- [x] 6.2 `article.e2e` 新增上傳案例（成功 200 回 filename / 未登入 401 / 非 pptx 400）
+- [x] 6.3 `pnpm typecheck && pnpm lint && pnpm test`（含 e2e）全綠
 
 ## 7. 驗證與收尾
 
