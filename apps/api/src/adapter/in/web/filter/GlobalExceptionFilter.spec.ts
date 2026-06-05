@@ -8,9 +8,7 @@ import {
 } from '@nestjs/common';
 import { GlobalExceptionFilter } from './GlobalExceptionFilter';
 import { SaveSystemLogPort } from '../../../../application/port/out/shared/SaveSystemLogPort';
-import { EmailNotFoundException } from '../../../../domain/exception/EmailNotFoundException';
-import { AccountNotLockedException } from '../../../../domain/exception/AccountNotLockedException';
-import { IpListNotFoundException } from '../../../../domain/exception/IpListNotFoundException';
+import { AccountDisabledException } from '../../../../domain/exception/AccountDisabledException';
 import * as Sentry from '@sentry/nestjs';
 
 // buildSystemLogData uses getEnv() internally
@@ -119,47 +117,20 @@ describe('GlobalExceptionFilter', () => {
 
     it('可預期的 domain exception 不應上報', () => {
       const { host } = makeHost();
-      filter.catch(new EmailNotFoundException(), host);
+      filter.catch(new AccountDisabledException(), host);
 
       expect(Sentry.captureException).not.toHaveBeenCalled();
     });
   });
 
   describe('Domain exception 對映', () => {
-    it('EmailNotFoundException → 404, EMAIL_NOT_FOUND', () => {
+    it('AccountDisabledException → 403, ACCOUNT_DISABLED', () => {
       const { host, json, status } = makeHost();
-      filter.catch(new EmailNotFoundException(), host);
+      filter.catch(new AccountDisabledException(), host);
 
-      expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
-      const body = (
-        json.mock.calls[0] as [{ code: string; message: string }]
-      )[0];
-      expect(body.code).toBe('EMAIL_NOT_FOUND');
-      expect(body.message).toBe('找不到該 email 對應的帳號');
-    });
-
-    it('AccountNotLockedException → 409, ACCOUNT_NOT_LOCKED', () => {
-      const { host, json, status } = makeHost();
-      filter.catch(new AccountNotLockedException(), host);
-
-      expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
-      const body = (
-        json.mock.calls[0] as [{ code: string; message: string }]
-      )[0];
-      expect(body.code).toBe('ACCOUNT_NOT_LOCKED');
-      expect(body.message).toBe('帳號未處於鎖定狀態，無需解鎖');
-    });
-
-    it('IpListNotFoundException → 404, IP_LIST_NOT_FOUND', () => {
-      const { host, json, status } = makeHost();
-      filter.catch(new IpListNotFoundException(), host);
-
-      expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
-      const body = (
-        json.mock.calls[0] as [{ code: string; message: string }]
-      )[0];
-      expect(body.code).toBe('IP_LIST_NOT_FOUND');
-      expect(body.message).toBe('找不到該 IP 名單紀錄');
+      expect(status).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
+      const body = (json.mock.calls[0] as [{ code: string }])[0];
+      expect(body.code).toBe('ACCOUNT_DISABLED');
     });
   });
 

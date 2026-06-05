@@ -12,14 +12,6 @@ import { LoginResult } from '../../../../application/port/in/auth/LoginUseCase';
 import { RefreshTokenResult } from '../../../../application/port/in/auth/RefreshTokenUseCase';
 import { LoginRequest, loginSchema } from './LoginRequest';
 import { LogoutRequest, logoutSchema } from './LogoutRequest';
-import {
-  ForgotPasswordRequest,
-  forgotPasswordSchema,
-} from './ForgotPasswordRequest';
-import {
-  ResetPasswordRequest,
-  resetPasswordSchema,
-} from './ResetPasswordRequest';
 import { RefreshTokenRequest, refreshTokenSchema } from './RefreshTokenRequest';
 import { JwtAuthGuard } from '../guard/JwtAuthGuard';
 import {
@@ -44,7 +36,6 @@ export class AuthController {
       password: dto.password,
       ip: req.ip,
       userAgent: req.headers['user-agent'],
-      recaptchaToken: dto.recaptchaToken,
     });
   }
 
@@ -77,28 +68,5 @@ export class AuthController {
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
-  }
-
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  async forgotPassword(
-    @Body(new ZodValidationPipe(forgotPasswordSchema))
-    dto: ForgotPasswordRequest,
-  ): Promise<{ message: string }> {
-    await this.authFacade.forgotPassword({ email: dto.email });
-    return { message: '若此信箱已註冊，您將收到密碼重設信件' };
-  }
-
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(
-    @Body(new ZodValidationPipe(resetPasswordSchema))
-    dto: ResetPasswordRequest,
-  ): Promise<{ message: string }> {
-    await this.authFacade.resetPassword({
-      token: dto.token,
-      newPassword: dto.newPassword,
-    });
-    return { message: '密碼已成功重設' };
   }
 }

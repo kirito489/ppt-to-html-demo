@@ -11,16 +11,6 @@ import {
   LogoutUseCase,
 } from '../port/in/auth/LogoutUseCase';
 import {
-  FORGOT_PASSWORD_USE_CASE,
-  ForgotPasswordCommand,
-  ForgotPasswordUseCase,
-} from '../port/in/auth/ForgotPasswordUseCase';
-import {
-  RESET_PASSWORD_USE_CASE,
-  ResetPasswordCommand,
-  ResetPasswordUseCase,
-} from '../port/in/auth/ResetPasswordUseCase';
-import {
   REFRESH_TOKEN_USE_CASE,
   RefreshTokenCommand,
   RefreshTokenResult,
@@ -34,10 +24,6 @@ export class AuthFacade {
     private readonly loginUseCase: LoginUseCase,
     @Inject(LOGOUT_USE_CASE)
     private readonly logoutUseCase: LogoutUseCase,
-    @Inject(FORGOT_PASSWORD_USE_CASE)
-    private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
-    @Inject(RESET_PASSWORD_USE_CASE)
-    private readonly resetPasswordUseCase: ResetPasswordUseCase,
     @Inject(REFRESH_TOKEN_USE_CASE)
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
   ) {}
@@ -48,14 +34,6 @@ export class AuthFacade {
 
   logout(command: LogoutCommand): Promise<void> {
     return this.logoutUseCase.execute(command);
-  }
-
-  forgotPassword(command: ForgotPasswordCommand): Promise<void> {
-    return this.forgotPasswordUseCase.execute(command);
-  }
-
-  resetPassword(command: ResetPasswordCommand): Promise<void> {
-    return this.resetPasswordUseCase.execute(command);
   }
 
   refreshToken(command: RefreshTokenCommand): Promise<RefreshTokenResult> {

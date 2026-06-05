@@ -1,12 +1,10 @@
 export interface LoginCommand {
   email: string;
   password: string;
-  /** 用戶端 IP（用於 auth log、IP 封鎖） */
+  /** 用戶端 IP（用於 auth log） */
   ip?: string;
   /** User-Agent（用於 auth log） */
   userAgent?: string;
-  /** reCAPTCHA token（用於 reCAPTCHA 驗證） */
-  recaptchaToken?: string;
 }
 
 export interface LoginResult {
