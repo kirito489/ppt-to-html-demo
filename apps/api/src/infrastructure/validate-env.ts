@@ -241,6 +241,8 @@ const envSchema = z.object({
   ACCURACY_WEIGHT_TEXT: z.coerce.number().min(0).max(1).default(0.5),
   ACCURACY_WEIGHT_IMAGE: z.coerce.number().min(0).max(1).default(0.3),
   ACCURACY_WEIGHT_COVERAGE: z.coerce.number().min(0).max(1).default(0.2),
+  /** 上傳 .pptx 大小上限（bytes），預設 50MB */
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(52428800),
 });
 
 export type Env = z.infer<typeof envSchema>;
