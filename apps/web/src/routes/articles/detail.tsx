@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Copy, Download } from 'lucide-react'
+import { ArrowLeft, Copy, Download, Presentation } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useApiQuery } from '@/api/client'
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AccuracyGauge } from './components/accuracy-gauge'
 import { SlidePreview } from './components/slide-preview'
 import { InventoryPanel } from './components/inventory-panel'
+import { buildPresentationHtml } from './lib/build-presentation-html'
 
 /** 觸發瀏覽器下載一段 HTML 為 .html 檔 */
 const downloadHtml = (html: string, title: string): void => {
@@ -84,6 +85,19 @@ export const ArticleDetailPage = () => {
                   >
                     <Download />
                     下載 HTML
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      downloadHtml(
+                        buildPresentationHtml(article.html, article.title),
+                        `${article.title}-簡報`,
+                      )
+                    }
+                  >
+                    <Presentation />
+                    下載簡報 HTML
                   </Button>
                   <Button
                     size="sm"
