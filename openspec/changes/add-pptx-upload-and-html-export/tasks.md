@@ -14,8 +14,8 @@
 
 ## 4. Swagger / api-client
 
-- [ ] 4.1 新增 `docs/swagger/articles/upload.yaml`（multipart/form-data，`file` binary；200 inline `{ filename }`、400/401）並掛到 `openapi.yaml`
-- [ ] 4.2 `swagger:bundle` + `api-client generate`
+- [x] 4.1 新增 `docs/swagger/articles/upload.yaml`（multipart/form-data，`file` binary；200 inline `{ filename }`、400/401）並掛到 `openapi.yaml`
+- [x] 4.2 `swagger:bundle` + `api-client generate`
 
 ## 5. 前端
 
