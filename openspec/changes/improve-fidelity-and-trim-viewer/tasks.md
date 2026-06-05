@@ -38,14 +38,22 @@
 - [x] 6.2 `detail.tsx`：移除「複製 HTML」按鈕與 `copyHtml`，保留「下載 HTML」「下載簡報 HTML」
 - [x] 6.3 調整對應前端測試（slide-preview / detail 相關），triad（含 web 測試）全綠後勾選並提交（refactor: 詳情頁預覽只留翻頁，移除捲動/模擬寬度/複製 HTML）
 
-## 7. 驗證
+## 7. 簡報匯出依投影片長寬比（前端，TDD）
 
-- [ ] 7.1 triad 全綠：`pnpm typecheck && pnpm lint && pnpm test`（含 api e2e 若有受影響）
-- [ ] 7.2 實機驗證：將三份樣本（台股盤後／美股盤前／量化策略）放回 `storage/incoming/` 重新攝取，下載 HTML 比對原檔——美股紅字框不再被圖蓋、台股文字不溢出壓圖、UiPath 頁 ■ 與藍字還原、表格不截斷；確認準確率不異常變動、不破百
-- [ ] 7.3 撰寫／更新 `smoke-test.md`（重現步驟與比對重點）
+驗證階段發現：量化策略為正方形投影片（1:1），`build-presentation-html.ts` 寫死 `calc(100vh*16/9)` → 整頁超出視窗被裁（即 #3「html 太大都截到」真因）。
 
-## 8. 收尾
+- [x] 7.1 build-presentation-html.test 補 fixture：section 帶 aspect-ratio（正方形 / 16:9 / 無），斷言 `.slide` 寬度依長寬比；跑到 RED
+- [x] 7.2 實作：`buildPresentationHtml` 取首頁 section 的 aspect-ratio，`.slide` 寬度改 `min(100vw,calc(100vh * cx/cy))`，無則退 16/9
+- [x] 7.3 web triad 全綠後勾選並提交（fix: 簡報匯出依投影片長寬比，正方形不再被裁）
 
-- [ ] 8.1 更新 `tasks/lessons.md`（z-order 文件順序、繼承色/主題色、bullets、表格保真度等新教訓）與 `tasks/todo.md`
-- [ ] 8.2 `openspec archive improve-fidelity-and-trim-viewer -y`（併 master specs + 移 archive）
-- [ ] 8.3 提供 archive commit 指令給使用者（條列格式）
+## 8. 驗證
+
+- [x] 8.1 triad 全綠：`pnpm typecheck && pnpm lint && pnpm test`（api 121、web 30；未動 controller/路由，e2e 不受影響）
+- [x] 8.2 實機驗證：以引擎本體跑三份真實樣本（台股盤後／美股盤前／量化策略）比對原檔——美股紅字框在圖之後不被蓋（imgIdx 568 < 道瓊 430604）+ `color:#FF0000`；UiPath 頁 `■` 與非黑繼承色還原；台股 font-family/line-height 已套；表格 colgroup+fixed+cell 自身字級；準確率 tw .999／us .998／q .98 皆未破百
+- [x] 8.3 撰寫／更新 `smoke-test.md`（重現步驟與比對重點）
+
+## 9. 收尾
+
+- [ ] 9.1 更新 `tasks/lessons.md`（z-order 文件順序、繼承色/主題色、bullets、表格保真度、簡報匯出長寬比等新教訓）與 `tasks/todo.md`
+- [ ] 9.2 `openspec archive improve-fidelity-and-trim-viewer -y`（併 master specs + 移 archive）
+- [ ] 9.3 提供 archive commit 指令給使用者（條列格式）
