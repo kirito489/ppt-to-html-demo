@@ -42,8 +42,8 @@
 
 ## 6. 持久化 Out Adapter
 
-- [ ] 6.1 `adapter/out/persistence` 實作 `PrismaConvertedArticleRepository`（save/list 分頁/findById）
-- [ ] 6.2 `adapter/out/persistence` 實作 `PrismaConversionJobRepository`（save/list）
+- [x] 6.1 `adapter/out/persistence` 實作 `PrismaConvertedArticleRepository`（save/list 分頁/findById）
+- [x] 6.2 `adapter/out/persistence` 實作 `PrismaConversionJobRepository`（save/list）
 
 ## 7. Controller / DTO / Facade / Module
 
