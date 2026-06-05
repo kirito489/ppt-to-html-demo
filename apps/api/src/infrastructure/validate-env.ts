@@ -222,6 +222,25 @@ const envSchema = z.object({
   //任務 alarm 排程 ───
   NOTIFICATION_ALARM_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   NOTIFICATION_ALARM_MINUTE: z.coerce.number().int().min(0).max(59).default(0),
+
+  // ─── PPT 攝取（demo 以本地資料夾模擬公槽 SFTP） ───
+  /** 來源資料夾（模擬公槽），排程定時掃描其中的 .pptx */
+  INGEST_SOURCE_DIR: z.string().default('storage/incoming'),
+  /** 轉換後若採 move 策略，來源檔搬移到此資料夾 */
+  INGEST_PROCESSED_DIR: z.string().default('storage/processed'),
+  /** 排程 cron（@nestjs/schedule 6 欄位含秒），預設每分鐘第 0 秒 */
+  INGEST_CRON: z.string().default('0 * * * * *'),
+  /** 排程是否啟用（測試環境關閉避免背景跑） */
+  INGEST_SCHEDULE_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => v === 'true'),
+  /** 轉換成功後來源檔處置：move（搬到 processed）/ delete（真刪） */
+  INGEST_AFTER_CONVERT: z.enum(['move', 'delete']).default('move'),
+  /** 準確率加權（文字 / 圖片 / 涵蓋率），三者建議相加為 1 */
+  ACCURACY_WEIGHT_TEXT: z.coerce.number().min(0).max(1).default(0.5),
+  ACCURACY_WEIGHT_IMAGE: z.coerce.number().min(0).max(1).default(0.3),
+  ACCURACY_WEIGHT_COVERAGE: z.coerce.number().min(0).max(1).default(0.2),
 });
 
 export type Env = z.infer<typeof envSchema>;

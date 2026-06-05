@@ -1,6 +1,7 @@
 import { Module, RequestMethod } from '@nestjs/common';
 import type { Request } from 'express';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
@@ -127,6 +128,8 @@ import { getEnv } from './infrastructure/validate-env';
         };
       },
     }),
+    // 排程：供 PPT 攝取定時掃描使用
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     FeatureFlagModule,

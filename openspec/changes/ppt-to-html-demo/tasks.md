@@ -13,9 +13,9 @@
 
 ## 2. 相依與資料庫
 
-- [ ] 2.1 後端安裝 `@nestjs/schedule`、`jszip`、`fast-xml-parser`，於 `app.module.ts` 註冊 `ScheduleModule.forRoot()`
-- [ ] 2.2 Prisma schema 新增 `ConvertedArticleRecord` 與 `ConversionJobRecord`（欄位見 design D6）
-- [ ] 2.3 產生 migration 並 `db:generate`；`.env.example` 新增 `INGEST_SOURCE_DIR`、`INGEST_CRON`、`INGEST_AFTER_CONVERT`、`ACCURACY_WEIGHTS`
+- [x] 2.1 後端安裝 `@nestjs/schedule`、`jszip`、`fast-xml-parser`，於 `app.module.ts` 註冊 `ScheduleModule.forRoot()`
+- [x] 2.2 Prisma schema 新增 `ConvertedArticleRecord` 與 `ConversionJobRecord`（欄位見 design D6）
+- [x] 2.3 產生 migration 並 `db:generate`；`.env.example` 新增 `INGEST_SOURCE_DIR`、`INGEST_CRON`、`INGEST_AFTER_CONVERT`、`ACCURACY_WEIGHTS`
 
 ## 3. Domain / Port
 
