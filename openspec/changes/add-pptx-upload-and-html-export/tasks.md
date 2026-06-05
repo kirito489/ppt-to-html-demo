@@ -10,7 +10,7 @@
 
 ## 3. Controller / DTO
 
-- [ ] 3.1 `ArticleController` 新增 `POST articles/upload`：`FileInterceptor('file')` + 驗證（.pptx MIME/副檔名、`UPLOAD_MAX_BYTES`）→ facade.upload，回 `{ filename }`；`JwtAuthGuard` 保護；無檔/格式錯回 400
+- [x] 3.1 `ArticleController` 新增 `POST articles/upload`：`FileInterceptor('file')` + 驗證（.pptx MIME/副檔名、`UPLOAD_MAX_BYTES`）→ facade.upload，回 `{ filename }`；`JwtAuthGuard` 保護；無檔/格式錯回 400
 
 ## 4. Swagger / api-client
 
