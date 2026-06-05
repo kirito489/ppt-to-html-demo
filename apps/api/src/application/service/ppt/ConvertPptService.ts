@@ -698,23 +698,31 @@ export class ConvertPptService implements ConvertPptUseCase {
     const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);
 
+    // 以首個 run 的字型為代表，套於整個文字框（補 CJK fallback 抑制替代字型行高差異）
+    const firstRun = asArray(paragraphs[0]?.['a:r'] as XmlNode[])[0];
+    const fontFamilyStyle = this.fontFamily(
+      firstRun?.['a:rPr'] as XmlNode | undefined,
+    );
+
     const plainParts: string[] = [];
     const htmlParagraphs = paragraphs.map((p) => {
-      const algn = (p['a:pPr'] as XmlNode | undefined)?.['@_algn'];
+      const pPr = p['a:pPr'] as XmlNode | undefined;
+      const algn = pPr?.['@_algn'];
       const alignStyle = algn
         ? `text-align:${ALGN_MAP[String(algn)] ?? 'left'};`
         : '';
+      const lineHeightStyle = this.lineHeight(pPr);
       const runs = asArray(p['a:r'] as XmlNode[]);
       const spans = runs.map((r) => {
         const t = textOf(r['a:t']);
         plainParts.push(t);
         return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx)}">${escapeHtml(t)}</span>`;
       });
-      return `<p style="margin:0;${alignStyle}">${spans.join('')}</p>`;
+      return `<p style="margin:0;${alignStyle}${lineHeightStyle}">${spans.join('')}</p>`;
     });
 
     const text = plainParts.join('').trim() ? plainParts.join('\n') : '';
-    const html = `<div style="position:absolute;${pos}${fillStyle}font-size:${this.fontCqw(baseSize, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
+    const html = `<div style="position:absolute;${pos}${fillStyle}${fontFamilyStyle}font-size:${this.fontCqw(baseSize, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
 
     return {
       html,
@@ -856,6 +864,31 @@ export class ConvertPptService implements ConvertPptUseCase {
     const srgb = solidFill?.['a:srgbClr'] as XmlNode | undefined;
     if (srgb?.['@_val']) parts.push(`color:#${String(srgb['@_val'])};`);
     return parts.join('');
+  }
+
+  // CJK 字型 fallback：替代字型行高貼近微軟正黑體，降低中文文字溢出原框
+  private static readonly CJK_FALLBACK =
+    '"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif';
+
+  /** 文字框字型堆疊：來源字型（a:latin/a:ea）置前，串接 CJK fallback */
+  private fontFamily(rPr: XmlNode | undefined): string {
+    const latin = (rPr?.['a:latin'] as XmlNode | undefined)?.['@_typeface'];
+    const ea = (rPr?.['a:ea'] as XmlNode | undefined)?.['@_typeface'];
+    const face = latin ?? ea;
+    return face
+      ? `font-family:"${String(face)}",${ConvertPptService.CJK_FALLBACK};`
+      : `font-family:${ConvertPptService.CJK_FALLBACK};`;
+  }
+
+  /** 段落行距 <a:lnSpc>：spcPct → 無單位 line-height；spcPts → pt */
+  private lineHeight(pPr: XmlNode | undefined): string {
+    const lnSpc = pPr?.['a:lnSpc'] as XmlNode | undefined;
+    if (!lnSpc) return '';
+    const pct = (lnSpc['a:spcPct'] as XmlNode | undefined)?.['@_val'];
+    if (pct) return `line-height:${round(Number(pct) / 100000, 3)};`;
+    const pts = (lnSpc['a:spcPts'] as XmlNode | undefined)?.['@_val'];
+    if (pts) return `line-height:${Number(pts) / 100}pt;`;
+    return '';
   }
 
   /** OOXML 字級（百分點）→ cqw（容器寬度單位，相對投影片寬） */

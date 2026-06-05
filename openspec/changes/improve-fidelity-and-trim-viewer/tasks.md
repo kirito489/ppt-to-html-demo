@@ -10,9 +10,9 @@
 
 ## 2. 字型與行距抑制文字溢出（引擎，TDD）
 
-- [ ] 2.1 spec 合成 fixture：文字框帶 `a:latin/a:ea` typeface 與段落 `a:lnSpc`（spcPct／spcPts），斷言輸出含對應 `font-family` 堆疊與 `line-height`；跑到 RED
-- [ ] 2.2 實作：文字框 `<div>` 設 `font-family`（來源字型 + `"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif` fallback）與 `line-height`（spcPct→無單位、spcPts→`Xpt`）
-- [ ] 2.3 triad 全綠後勾選並提交（fix: 文字框補字型堆疊與行距，抑制溢出壓圖）
+- [x] 2.1 spec 合成 fixture：文字框帶 `a:latin/a:ea` typeface 與段落 `a:lnSpc`（spcPct／spcPts），斷言輸出含對應 `font-family` 堆疊與 `line-height`；跑到 RED
+- [x] 2.2 實作：文字框 `<div>` 設 `font-family`（來源字型 + `"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif` fallback）與 `line-height`（spcPct→無單位、spcPts→`Xpt`）
+- [x] 2.3 triad 全綠後勾選並提交（fix: 文字框補字型堆疊與行距，抑制溢出壓圖）
 
 ## 3. 項目符號與編號還原（引擎，TDD）
 
