@@ -36,9 +36,9 @@
 
 ## 5. 攝取流程與排程
 
-- [ ] 5.1 `adapter/out` 實作 `LocalFolderSourceAdapter`（掃描/讀/移除，含 move 至 processed 或 delete 策略）
-- [ ] 5.2 實作 `IngestPptService`（編排：list→read→convert→persist→清除來源→累積 job）
-- [ ] 5.3 實作排程器（`@Cron(INGEST_CRON)` 觸發 `IngestPptUseCase`）
+- [x] 5.1 `adapter/out` 實作 `LocalFolderSourceAdapter`（掃描/讀/移除，含 move 至 processed 或 delete 策略）
+- [x] 5.2 實作 `IngestPptService`（編排：list→read→convert→persist→清除來源→累積 job）
+- [x] 5.3 實作排程器（`@Cron(INGEST_CRON)` 觸發 `IngestPptUseCase`）
 
 ## 6. 持久化 Out Adapter
 

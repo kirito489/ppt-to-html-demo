@@ -68,6 +68,9 @@ importers:
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
+      cron:
+        specifier: 4.4.0
+        version: 4.4.0
       dayjs:
         specifier: ^1.11.20
         version: 1.11.20
