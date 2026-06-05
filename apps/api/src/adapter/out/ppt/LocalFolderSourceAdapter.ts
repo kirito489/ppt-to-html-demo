@@ -37,6 +37,25 @@ export class LocalFolderSourceAdapter implements SourceStoragePort {
     return fs.readFile(file.path);
   }
 
+  async save(filename: string, content: Buffer): Promise<SourceFile> {
+    const dir = this.resolveDir(getEnv().INGEST_SOURCE_DIR);
+    await fs.mkdir(dir, { recursive: true });
+    // path.basename 防路徑穿越；同名則加時間戳去重，避免覆蓋既有來源
+    const safe = path.basename(filename);
+    let dest = path.join(dir, safe);
+    try {
+      await fs.access(dest);
+      const ext = path.extname(safe);
+      const stem = ext ? safe.slice(0, -ext.length) : safe;
+      dest = path.join(dir, `${stem}-${Date.now()}${ext}`);
+    } catch {
+      // 不存在 → 直接用原名
+    }
+    await fs.writeFile(dest, content);
+    this.logger.log(`已上傳來源檔 ${path.basename(dest)}`);
+    return { name: path.basename(dest), path: dest };
+  }
+
   async dispose(file: SourceFile): Promise<void> {
     const env = getEnv();
     if (env.INGEST_AFTER_CONVERT === 'delete') {

@@ -15,6 +15,11 @@ import {
   INGEST_PPT_USE_CASE,
   IngestPptUseCase,
 } from '../port/in/ppt/IngestPptUseCase';
+import {
+  UPLOAD_PPT_USE_CASE,
+  UploadPptResult,
+  UploadPptUseCase,
+} from '../port/in/ppt/UploadPptUseCase';
 import type {
   ArticlesPage,
   ListArticlesParams,
@@ -37,7 +42,14 @@ export class PptFacade {
     private readonly listConversionJobsUseCase: ListConversionJobsUseCase,
     @Inject(INGEST_PPT_USE_CASE)
     private readonly ingestPptUseCase: IngestPptUseCase,
+    @Inject(UPLOAD_PPT_USE_CASE)
+    private readonly uploadPptUseCase: UploadPptUseCase,
   ) {}
+
+  /** 上傳單一 .pptx 至公槽（不立即轉換），回傳存入的檔名 */
+  upload(buffer: Buffer, filename: string): Promise<UploadPptResult> {
+    return this.uploadPptUseCase.execute({ buffer, filename });
+  }
 
   listArticles(params: ListArticlesParams): Promise<ArticlesPage> {
     return this.listArticlesUseCase.execute(params);

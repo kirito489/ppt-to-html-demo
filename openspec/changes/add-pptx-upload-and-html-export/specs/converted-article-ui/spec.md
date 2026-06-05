@@ -1,15 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: 前端上傳 PPT
-前端 SHALL 在文章列表頁提供「上傳 PPT」操作，讓使用者選取單一 `.pptx` 上傳轉換，完成後更新列表。
+前端 SHALL 在文章列表頁提供「上傳 PPT」操作，讓使用者選取單一 `.pptx` 上傳至公槽（不立即轉換），並提示後續以「立即抓取轉換」或排程進行轉換。
 
 #### Scenario: 選檔上傳成功
-- **WHEN** 已登入使用者選取一個 `.pptx` 上傳並轉換成功
-- **THEN** 前端 MUST 顯示成功提示，且列表 MUST 出現該篇新文章
+- **WHEN** 已登入使用者選取一個 `.pptx` 上傳成功
+- **THEN** 前端 MUST 顯示成功提示（含「請按『立即抓取轉換』或等排程」的引導）
 
 #### Scenario: 上傳失敗
-- **WHEN** 上傳的檔案無效或轉換失敗
-- **THEN** 前端 MUST 顯示錯誤訊息，不新增文章
+- **WHEN** 上傳的檔案無效（非 .pptx / 過大）
+- **THEN** 前端 MUST 顯示錯誤訊息
 
 ### Requirement: 文章 HTML 匯出
 前端 SHALL 在文章詳情頁提供「下載 HTML」與「複製 HTML」兩個動作，作用於該文章的轉換後 HTML。

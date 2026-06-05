@@ -19,6 +19,7 @@ const makeDeps = () => {
     list: jest.fn(),
     read: jest.fn().mockResolvedValue(Buffer.from('pptx')),
     dispose: jest.fn().mockResolvedValue(undefined),
+    save: jest.fn(),
   };
   const converter: jest.Mocked<ConvertPptUseCase> = {
     execute: jest.fn(),

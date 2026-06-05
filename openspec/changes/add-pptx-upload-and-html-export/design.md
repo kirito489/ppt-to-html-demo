@@ -5,12 +5,12 @@
 ## Goals / Non-Goals
 
 **Goals:**
-- `POST /api/articles/upload`（multipart 單檔 `.pptx`）→ 立即轉換 → 存檔 → 回傳該文章（前端可直接進詳情）。
+- `POST /api/articles/upload`（multipart 單檔 `.pptx`）→ **存入公槽（來源資料夾）** → 回傳存入檔名。
 - 前端文章列表頁「上傳 PPT」按鈕；詳情頁「下載 HTML」「複製 HTML」。
 
 **Non-Goals:**
+- **上傳不轉換**：轉換沿用既有排程 / 手動觸發 `POST /api/articles/ingest`（使用者已有「立即抓取轉換」按鈕）。
 - 不做多檔上傳、不做拖放區塊（單一檔案選取即可；之後要再加）。
-- 上傳不建立 `ConversionJob`（那是「批次攝取」語意；單檔上傳直接回文章）。
 - 不改轉換引擎、準確率、資料表。
 
 ## Decisions
@@ -18,11 +18,11 @@
 ### D1. 上傳端點：FileInterceptor 記憶體緩衝 + 驗證
 `@Post('articles/upload')` 用 `@nestjs/platform-express` 的 `FileInterceptor('file')`（預設 memoryStorage，取得 `file.buffer`）。驗證：副檔名/MIME 為 pptx（`application/vnd.openxmlformats-officedocument.presentationml.presentation`，並接受副檔名 `.pptx`）、大小上限（`UPLOAD_MAX_BYTES`，預設 50MB）。不符回 `400 BAD_REQUEST`。受 `JwtAuthGuard` 保護。
 
-### D2. UploadPptUseCase / Service
-新增 `UploadPptUseCase`（in port）+ `UploadPptService`：呼叫 `ConvertPptUseCase.execute({ buffer, filename })` → `SaveConvertedArticlePort.save(...)` → 以回傳 id 透過 `LoadConvertedArticlePort.findById(id)` 取回完整 `ConvertedArticle` 回傳。轉換失敗（`PptParseException`）由 GlobalExceptionFilter 對應 422。`PptFacade` 加 `upload(buffer, filename)`。
+### D2. UploadPptUseCase / Service（只存公槽，不轉換）
+`SourceStoragePort` 新增 `save(filename, buffer): Promise<SourceFile>`，`LocalFolderSourceAdapter` 實作：`path.basename` 防穿越、寫入 `INGEST_SOURCE_DIR`、同名以時間戳去重。`UploadPptService` 只呼叫 `source.save(...)` 回傳 `{ filename }`，**不碰轉換引擎**。`PptFacade` 加 `upload(buffer, filename)`。
 
 ### D3. 回應形狀
-回傳完整 `ConvertedArticle`（與 `GET /api/articles/:id` 同 shape），前端上傳成功即可導去 `/articles/:id` 或重整列表。
+回傳 `{ filename }`（實際存入公槽的檔名）。前端提示「已上傳，請按『立即抓取轉換』或等排程」。
 
 ### D4. 前端上傳：原生 fetch + FormData
 multipart 透過型別化 `useApiMutation`（openapi-fetch）較不便，故上傳改用原生 `fetch('/api/articles/upload', { method:'POST', body: FormData, headers:{ Authorization } })`，token 取自 `@/lib/storage` 的 `tokenStorage`；回應沿用後端 `{ success, data }` 外殼，手動取 `data`。上傳中 disable 按鈕、`toast` 顯示結果、`queryClient.invalidateQueries`（或列表 query refetch）後可導向詳情。
