@@ -16,12 +16,12 @@
 
 ## 3. 驗證
 
-- [ ] 3.1 triad 全綠：`pnpm typecheck && pnpm lint && pnpm test`
-- [ ] 3.2 實機驗證：引擎重跑樣本（美股盤前/個股訊息/台股盤中/台股盤後）比對原檔——右下 logo 出現、個股訊息字級變大填滿框、台股各頁無回歸；確認準確率不破百
-- [ ] 3.3 更新 `smoke-test.md`（logo 與字級檢查點）
+- [x] 3.1 triad 全綠：`pnpm typecheck && pnpm lint && pnpm test`
+- [x] 3.2 實機驗證：引擎重跑樣本（美股盤前/個股訊息/台股盤中/台股盤後）比對原檔——右下 logo 出現、個股訊息字級變大填滿框、台股各頁無回歸；確認準確率不破百
+- [x] 3.3 更新 `smoke-test.md`（logo 與字級檢查點）
 
 ## 4. 收尾
 
-- [ ] 4.1 更新 `tasks/lessons.md`（layout/master 圖片渲染、placeholder lstStyle 字級繼承鏈、idx-only 框分類）與 `tasks/todo.md`
-- [ ] 4.2 `openspec archive improve-master-graphics-and-text-inheritance -y`
-- [ ] 4.3 提供 archive commit 指令（條列格式）
+- [x] 4.1 更新 `tasks/lessons.md`（layout/master 圖片渲染、placeholder lstStyle 字級繼承鏈、idx-only 框分類）與 `tasks/todo.md`
+- [x] 4.2 `openspec archive improve-master-graphics-and-text-inheritance -y`
+- [x] 4.3 提供 archive commit 指令（條列格式）
