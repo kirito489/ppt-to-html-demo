@@ -3,6 +3,7 @@ import { ArticleController } from '../adapter/in/web/article/ArticleController';
 import { PptFacade } from '../application/facade/PptFacade';
 import { ConvertPptService } from '../application/service/ppt/ConvertPptService';
 import { IngestPptService } from '../application/service/ppt/IngestPptService';
+import { UploadPptService } from '../application/service/ppt/UploadPptService';
 import { ListArticlesService } from '../application/service/article/ListArticlesService';
 import { GetArticleService } from '../application/service/article/GetArticleService';
 import { ListConversionJobsService } from '../application/service/article/ListConversionJobsService';
@@ -13,6 +14,7 @@ import { PptIngestScheduler } from '../adapter/in/scheduler/PptIngestScheduler';
 import { MemberModule } from './member.module';
 import { CONVERT_PPT_USE_CASE } from '../application/port/in/ppt/ConvertPptUseCase';
 import { INGEST_PPT_USE_CASE } from '../application/port/in/ppt/IngestPptUseCase';
+import { UPLOAD_PPT_USE_CASE } from '../application/port/in/ppt/UploadPptUseCase';
 import { LIST_ARTICLES_USE_CASE } from '../application/port/in/article/ListArticlesUseCase';
 import { GET_ARTICLE_USE_CASE } from '../application/port/in/article/GetArticleUseCase';
 import { LIST_CONVERSION_JOBS_USE_CASE } from '../application/port/in/article/ListConversionJobsUseCase';
@@ -37,6 +39,8 @@ import { JwtModule } from './jwt.module';
     { provide: CONVERT_PPT_USE_CASE, useExisting: ConvertPptService },
     IngestPptService,
     { provide: INGEST_PPT_USE_CASE, useExisting: IngestPptService },
+    UploadPptService,
+    { provide: UPLOAD_PPT_USE_CASE, useExisting: UploadPptService },
     ListArticlesService,
     { provide: LIST_ARTICLES_USE_CASE, useExisting: ListArticlesService },
     GetArticleService,

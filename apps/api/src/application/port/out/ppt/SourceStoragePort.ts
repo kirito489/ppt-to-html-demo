@@ -19,4 +19,6 @@ export interface SourceStoragePort {
   read(file: SourceFile): Promise<Buffer>;
   /** 依設定策略處置來源檔（move 搬到 processed / delete 真刪） */
   dispose(file: SourceFile): Promise<void>;
+  /** 寫入一個新來源檔（上傳用），回傳實際存入的檔案（檔名可能去重） */
+  save(filename: string, content: Buffer): Promise<SourceFile>;
 }

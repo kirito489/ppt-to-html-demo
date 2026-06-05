@@ -721,6 +721,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/articles/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 上傳 .pptx 至公槽
+         * @description 上傳單一 `.pptx` 存入公槽（來源資料夾），回傳實際存入檔名。
+         *     **不在此時轉換**；轉換沿用排程或手動觸發 `POST /api/articles/ingest`。
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /**
+                         * Format: binary
+                         * @description 要上傳的 .pptx 檔
+                         */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description 上傳成功 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            data: {
+                                /** @description 實際存入公槽的檔名（同名會自動去重） */
+                                filename: string;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description 無檔案 / 非 .pptx / 超過大小上限 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "success": false,
+                         *       "message": "只接受 .pptx 檔",
+                         *       "code": "BAD_REQUEST",
+                         *       "timestamp": "2026-06-05T00:00:00.000Z"
+                         *     }
+                         */
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                401: components["responses"]["NoToken"];
+                500: components["responses"]["InternalServerError"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/articles/{id}": {
         parameters: {
             query?: never;

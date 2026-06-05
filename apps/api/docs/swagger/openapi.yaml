@@ -220,6 +220,10 @@ paths:
     post:
       $ref: './articles/ingest.yaml'
 
+  /articles/upload:
+    post:
+      $ref: './articles/upload.yaml'
+
   /articles/{id}:
     get:
       $ref: './articles/get.yaml'

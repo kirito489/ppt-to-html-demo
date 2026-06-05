@@ -184,3 +184,15 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 ## 可觀測性 / Sentry & metrics
 
 - **可觀測性套件用 feature flag 包起來、預設關閉，兩種不同包法**：Sentry 由 `Sentry.init({ enabled: flag && !!DSN })` 控制——停用時 `Sentry.captureException` 是 no-op，所以呼叫端（如 GlobalExceptionFilter 的 fallback 500 分支）可無條件呼叫，不必自己判旗標。Prometheus 則用 `...(getEnv().APPLICATION_METRICS_ENABLED ? [PrometheusModule.register()] : [])` 在 AppModule imports 條件式掛載，關閉時完全不註冊 `/api/metrics`。**Why:** 2026-05-30 兩者皆要 flag 預設關閉、wiring 就緒。**How to apply:** 「SDK 自帶 enabled 開關」的（Sentry）走 init 旗標 + 呼叫端無條件呼叫；「會掛 controller / endpoint」的（Prometheus）走 imports 陣列條件 spread，避免關閉時還曝露端點。
+
+## 檔案上傳 / multipart
+
+- **multipart 上傳檔名（multer）預設以 latin1 解析，非 ASCII（中文）會亂碼，須轉回 UTF-8**：`@UploadedFile() file` 的 `file.originalname` 對中文檔名會變成 `éåç­ç¥` 之類，連帶存檔名與以檔名為標題的文章都亂碼。**Why:** 2026-06-05 add-pptx-upload-and-html-export 實機上傳「量化策略.pptx」回傳亂碼檔名。**How to apply:** 在 controller HTTP 邊界轉碼 `const name = Buffer.from(file.originalname ?? '', 'latin1').toString('utf8')` 再往下用。ASCII 檔名轉換為 no-op，安全。e2e 用 supertest `.attach('file', buf, '量化策略.pptx')` + 斷言回傳含中文可守住此修正。
+
+- **multipart 上傳走型別化 client（openapi-fetch）較不便，前端用原生 fetch + FormData 帶 Authorization**：`useApiMutation` 對 multipart body 不順手；上傳改 `fetch('/api/articles/upload', { method:'POST', headers:{ Authorization }, body: FormData })`，token 取自 `tokenStorage`，回應手動剝 `{ success, data }` 外殼。其餘一般 JSON 端點仍走 `useApiQuery`/`useApiMutation`。
+
+## 測試（補充）
+
+- **e2e 若真的寫入檔案系統（如上傳 adapter 寫入來源資料夾），測試會跨次執行互相污染**：上傳 e2e 把檔案寫進暫存 incoming，導致後續「來源為空 → 攝取 0 筆」的測試在第二次執行時失敗（incoming 殘留上次上傳檔）。**Why:** 2026-06-05 上傳 e2e 加完後，第二次 `test:e2e` 攝取測試紅。**How to apply:** 寫真實 fs 的 e2e 在 `beforeAll` 先清乾淨目標目錄（`rm(dir, { recursive, force })`）；來源目錄已由 `setup-env` 指向 `os.tmpdir()` 下的暫存路徑（不碰 demo 樣本），清理零風險。
+
+- **新增 out port 方法，所有實作該 port 的 mock spec 都要補上 `jest.fn()`**：`SourceStoragePort` 加 `save()` 後，`IngestPptService.spec` 的 `jest.Mocked<SourceStoragePort>` 立刻 TS 報缺 `save`。擴 port 介面時記得掃既有 mock。

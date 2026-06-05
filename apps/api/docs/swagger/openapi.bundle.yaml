@@ -819,6 +819,70 @@ paths:
           $ref: '#/components/responses/NoToken'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /articles/upload:
+    post:
+      tags:
+        - Articles
+      summary: 上傳 .pptx 至公槽
+      description: |
+        上傳單一 `.pptx` 存入公槽（來源資料夾），回傳實際存入檔名。
+        **不在此時轉換**；轉換沿用排程或手動觸發 `POST /api/articles/ingest`。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 要上傳的 .pptx 檔
+      responses:
+        '200':
+          description: 上傳成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - timestamp
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required:
+                      - filename
+                    properties:
+                      filename:
+                        type: string
+                        description: 實際存入公槽的檔名（同名會自動去重）
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: 無檔案 / 非 .pptx / 超過大小上限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: 只接受 .pptx 檔
+                code: BAD_REQUEST
+                timestamp: '2026-06-05T00:00:00.000Z'
+        '401':
+          $ref: '#/components/responses/NoToken'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   '/articles/{id}':
     get:
       tags:
