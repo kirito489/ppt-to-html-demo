@@ -30,5 +30,5 @@
 
 ## 7. 驗證與收尾
 
-- [ ] 7.1 實機驗證：列表上傳 .pptx → 公槽出現檔案 → 立即抓取轉換 → 文章出現 → 詳情下載/複製 HTML
-- [ ] 7.2 更新 `tasks/lessons.md`（multipart 上傳 / clipboard 經驗）；提供繁中 conventional commit 訊息
+- [x] 7.1 實機驗證：列表上傳 .pptx → 公槽出現檔案 → 立即抓取轉換 → 文章出現 → 詳情下載/複製 HTML
+- [x] 7.2 更新 `tasks/lessons.md`（multipart 上傳 / clipboard 經驗）；提供繁中 conventional commit 訊息

@@ -1,5 +1,8 @@
 import bcrypt from 'bcrypt';
 import request from 'supertest';
+import { rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { createE2EApp, createMockRedis } from './test-app';
 
@@ -75,6 +78,12 @@ describe('Article E2E', () => {
   let token: string;
 
   beforeAll(async () => {
+    // 清掉前次執行殘留的上傳檔，確保「來源為空」的攝取測試成立
+    await rm(join(tmpdir(), 'ppt-e2e-incoming'), {
+      recursive: true,
+      force: true,
+    });
+
     ({ app } = await createE2EApp({ prisma: mockPrisma, redis: mockRedis }));
 
     const loginRes = await request(app.getHttpServer())
@@ -194,6 +203,18 @@ describe('Article E2E', () => {
       const filename = (res.body as { data: { filename: string } }).data
         .filename;
       expect(filename).toMatch(/\.pptx$/);
+    });
+
+    it('中文檔名不亂碼（latin1 → UTF-8）', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/articles/upload')
+        .set('authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-pptx'), '量化策略.pptx');
+
+      expect(res.status).toBe(200);
+      const filename = (res.body as { data: { filename: string } }).data
+        .filename;
+      expect(filename).toContain('量化策略');
     });
 
     it('非 .pptx → 400', async () => {

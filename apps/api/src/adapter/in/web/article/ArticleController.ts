@@ -50,7 +50,10 @@ export class ArticleController {
     if (!file) {
       throw new BadRequestException('缺少上傳檔案（欄位名 file）');
     }
-    const name = file.originalname ?? '';
+    // multer 預設以 latin1 解析 multipart 檔名，中文等非 ASCII 會亂碼，需轉回 UTF-8
+    const name = Buffer.from(file.originalname ?? '', 'latin1').toString(
+      'utf8',
+    );
     if (!name.toLowerCase().endsWith('.pptx')) {
       throw new BadRequestException('只接受 .pptx 檔');
     }
