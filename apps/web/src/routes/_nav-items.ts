@@ -1,13 +1,13 @@
-import { Home, Shield, ShieldBan, ShieldCheck, Users } from 'lucide-react'
+import { FileText, History, Home } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-import { ROLE_CODE, type RoleCode } from '@/lib/role-codes'
+import { type RoleCode } from '@/lib/role-codes'
 
 export type NavItem = {
   label: string
   path: string
   icon: LucideIcon
-  /** 屬於哪個 sidebar group（如「使用者與權限」「安全」）；未指定為「無 group」固定放最上 */
+  /** 屬於哪個 sidebar group；未指定為「無 group」固定放最上 */
   group?: string
   /** 需要的權限代碼；undefined 表示所有登入者都看得到 */
   requiredPermission?: string
@@ -16,43 +16,15 @@ export type NavItem = {
 }
 
 /**
- * Sidebar 導航項目宣告。新增模組時加一筆即可：
- * - Layout 會依 requiredPermission + requiredRoleCode 過濾可見項目
- * - 依 group 分塊渲染（整組空就不渲染整個 group）
+ * Sidebar 導航項目宣告。
  */
 export const NAV_ITEMS: NavItem[] = [
-  // 無 group → 獨立排在最上方
   { label: '首頁', path: '/', icon: Home },
-
-  // 使用者與權限
+  { label: '文章列表', path: '/articles', icon: FileText, group: 'PPT 轉換' },
   {
-    label: '會員管理',
-    path: '/members',
-    icon: Users,
-    group: '使用者與權限',
-    requiredPermission: 'BACKEND:ACCOUNT:VIEW',
-  },
-  {
-    label: '角色管理',
-    path: '/roles',
-    icon: Shield,
-    group: '使用者與權限',
-    requiredPermission: 'BACKEND:ROLE:VIEW',
-  },
-
-  // 安全（SUPERADMIN-only）
-  {
-    label: 'IP 白名單',
-    path: '/security/ip-whitelist',
-    icon: ShieldCheck,
-    group: '安全',
-    requiredRoleCode: ROLE_CODE.SUPERADMIN,
-  },
-  {
-    label: 'IP 黑名單',
-    path: '/security/ip-blacklist',
-    icon: ShieldBan,
-    group: '安全',
-    requiredRoleCode: ROLE_CODE.SUPERADMIN,
+    label: '轉換紀錄',
+    path: '/conversion-jobs',
+    icon: History,
+    group: 'PPT 轉換',
   },
 ]

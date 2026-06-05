@@ -1,18 +1,22 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { MemberFacade } from '../../../../application/facade/MemberFacade';
 import { JwtAuthGuard } from '../guard/JwtAuthGuard';
 import {
   CurrentMember,
   MemberContext,
 } from '../decorator/current-member.decorator';
 
+/** 取得目前登入者基本資料（精簡版，僅供前端顯示與權限判斷） */
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
-  constructor(private readonly memberFacade: MemberFacade) {}
-
   @Get()
   getProfile(@CurrentMember() actor: MemberContext) {
-    return this.memberFacade.getMyProfile(actor.sub);
+    return {
+      id: actor.sub,
+      email: actor.email,
+      roleName: actor.roleName,
+      roleCode: actor.roleCode,
+      permissionCodes: actor.permissions,
+    };
   }
 }

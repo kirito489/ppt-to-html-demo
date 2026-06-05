@@ -1,0 +1,69 @@
+tags: [Articles]
+summary: 轉換文章列表（分頁）
+description: 取得由 PPT 轉換而來的文章清單（精簡欄位），依建立時間倒序。
+
+security:
+  - bearerAuth: []
+
+parameters:
+  - in: query
+    name: page
+    schema: { type: integer, minimum: 1, default: 1 }
+    description: 頁碼
+  - in: query
+    name: limit
+    schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+    description: 每頁筆數
+
+responses:
+  '200':
+    description: 查詢成功
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [success, data, timestamp]
+          properties:
+            success: { type: boolean, example: true }
+            data:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - title
+                      - sourceFilename
+                      - slideCount
+                      - accuracyOverall
+                      - status
+                      - createdAt
+                    properties:
+                      id: { type: string, format: uuid }
+                      title: { type: string, description: 文章標題 }
+                      sourceFilename: { type: string, description: 來源 PPT 檔名 }
+                      slideCount: { type: integer, description: 投影片頁數 }
+                      accuracyOverall:
+                        type: number
+                        description: 整體準確率（0~1）
+                      status:
+                        type: string
+                        enum: [success, partial, failed]
+                        description: 轉換狀態
+                      createdAt: { type: string, format: date-time }
+                meta:
+                  type: object
+                  required: [page, limit, total, totalPages]
+                  properties:
+                    page: { type: integer }
+                    limit: { type: integer }
+                    total: { type: integer }
+                    totalPages: { type: integer }
+            timestamp: { type: string, format: date-time }
+  '401':
+    $ref: '../openapi.yaml#/components/responses/NoToken'
+  '500':
+    $ref: '../openapi.yaml#/components/responses/InternalServerError'

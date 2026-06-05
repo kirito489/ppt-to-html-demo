@@ -1,5 +1,4 @@
 import {
-  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -26,19 +25,6 @@ import {
   SaveAuthLogPort,
 } from '../../port/out/auth/SaveAuthLogPort';
 import {
-  ACCOUNT_LOCK_PORT,
-  AccountLockPort,
-} from '../../port/out/auth/AccountLockPort';
-import {
-  IP_BLOCK_PORT,
-  IpBlockPort,
-} from '../../port/out/security/IpBlockPort';
-import { IP_LIST_PORT, IpListPort } from '../../port/out/security/IpListPort';
-import {
-  RECAPTCHA_VERIFY_PORT,
-  RecaptchaVerifyPort,
-} from '../../port/out/auth/RecaptchaVerifyPort';
-import {
   SESSION_ACTIVITY_PORT,
   SessionActivityPort,
 } from '../../port/out/auth/SessionActivityPort';
@@ -46,6 +32,7 @@ import { FeatureFlagService } from '../shared/FeatureFlagService';
 import { JwtPayload } from '../../port/jwt-payload';
 import { getEnv } from '../../../infrastructure/validate-env';
 
+/** 精簡後的登入：載入會員 → bcrypt 驗證 → status 檢查 → 簽發雙 Token。 */
 @Injectable()
 export class LoginService implements LoginUseCase {
   private readonly logger = new Logger(LoginService.name);
@@ -57,14 +44,6 @@ export class LoginService implements LoginUseCase {
     private readonly saveMember: SaveMemberPort,
     @Inject(SAVE_AUTH_LOG_PORT)
     private readonly saveAuthLog: SaveAuthLogPort,
-    @Inject(ACCOUNT_LOCK_PORT)
-    private readonly accountLock: AccountLockPort,
-    @Inject(IP_BLOCK_PORT)
-    private readonly ipBlock: IpBlockPort,
-    @Inject(IP_LIST_PORT)
-    private readonly ipList: IpListPort,
-    @Inject(RECAPTCHA_VERIFY_PORT)
-    private readonly recaptcha: RecaptchaVerifyPort,
     @Inject(SESSION_ACTIVITY_PORT)
     private readonly sessionActivity: SessionActivityPort,
     private readonly jwtService: JwtService,
@@ -72,43 +51,31 @@ export class LoginService implements LoginUseCase {
   ) {}
 
   async execute(command: LoginCommand): Promise<LoginResult> {
-    const { email, password, ip, userAgent, recaptchaToken } = command;
-
-    // reCAPTCHA 驗證
-    if (this.featureFlags.isEnabled('googleRecaptchaEnabled')) {
-      if (!recaptchaToken) {
-        throw new UnauthorizedException('請完成 reCAPTCHA 驗證');
-      }
-      const passed = await this.recaptcha.verify(recaptchaToken, ip);
-      if (!passed) {
-        throw new UnauthorizedException('reCAPTCHA 驗證失敗');
-      }
-    }
-
-    // 帳號鎖定檢查
-    if (this.featureFlags.isEnabled('accountLockEnabled')) {
-      if (await this.accountLock.isLocked(email)) {
-        await this.logAuth(
-          email,
-          undefined,
-          'LOGIN_FAILURE',
-          ip,
-          userAgent,
-          '帳號已鎖定',
-        );
-        throw new ForbiddenException('帳號已被鎖定，請聯繫管理員解鎖');
-      }
-    }
+    const { email, password, ip, userAgent } = command;
 
     const member = await this.loadMember.loadMemberByEmail(email);
     if (!member) {
-      await this.handleLoginFailure(email, ip, userAgent, '帳號不存在');
+      await this.logAuth(
+        email,
+        undefined,
+        'LOGIN_FAILURE',
+        ip,
+        userAgent,
+        '帳號不存在',
+      );
       throw new UnauthorizedException('帳號或密碼錯誤');
     }
 
     const isMatch = await bcrypt.compare(password, member.password);
     if (!isMatch) {
-      await this.handleLoginFailure(email, ip, userAgent, '密碼錯誤');
+      await this.logAuth(
+        email,
+        member.id.toString(),
+        'LOGIN_FAILURE',
+        ip,
+        userAgent,
+        '密碼錯誤',
+      );
       throw new UnauthorizedException('帳號或密碼錯誤');
     }
 
@@ -123,14 +90,6 @@ export class LoginService implements LoginUseCase {
         '帳號已停用',
       );
       throw new AccountDisabledException();
-    }
-
-    // 登入成功：重置失敗計數
-    if (this.featureFlags.isEnabled('accountLockEnabled')) {
-      await this.accountLock.resetFailedLogin(email);
-    }
-    if (ip) {
-      await this.ipBlock.resetIpAttempts(ip);
     }
 
     const memberId = member.id.toString();
@@ -159,7 +118,6 @@ export class LoginService implements LoginUseCase {
       this.logger.warn('updateLastLoginAt 失敗', err);
     });
 
-    // 記錄登入成功日誌
     await this.logAuth(email, memberId, 'LOGIN_SUCCESS', ip, userAgent);
 
     return {
@@ -171,58 +129,12 @@ export class LoginService implements LoginUseCase {
         id: memberId,
         email: member.email.toString(),
         member: member.member,
-        roleName: member.roleName,
+        roleName: member.roleName || '管理員',
       },
     };
   }
 
-  /**
-   * 處理登入失敗：帳號鎖定計數 + IP 封鎖計數 + 日誌
-   */
-  private async handleLoginFailure(
-    email: string,
-    ip?: string,
-    userAgent?: string,
-    detail?: string,
-  ): Promise<void> {
-    // 帳號失敗計數
-    if (this.featureFlags.isEnabled('accountLockEnabled')) {
-      const env = getEnv();
-      const failCount = await this.accountLock.recordFailedLogin(email);
-      if (failCount >= env.APPLICATION_ACCOUNT_LOCK_THRESHOLD) {
-        await this.accountLock.lockAccount(email);
-        this.logger.warn(`帳號 ${email} 已因連續 ${failCount} 次失敗而鎖定`);
-      }
-    }
-
-    // IP 失敗計數（需同時啟用帳號鎖定和 IP 黑名單功能）
-    if (ip && this.featureFlags.isEnabled('ipBlacklistEnabled')) {
-      const env = getEnv();
-      const ipFailCount = await this.ipBlock.recordFailedIpAttempt(ip);
-      if (ipFailCount >= env.APPLICATION_IP_BLOCK_THRESHOLD) {
-        await this.ipList.addToBlacklist(
-          ip,
-          `自動封鎖：連續 ${ipFailCount} 次登入失敗`,
-          true,
-        );
-        this.logger.warn(`IP ${ip} 已自動加入黑名單（${ipFailCount} 次失敗）`);
-      }
-    }
-
-    // 記錄失敗日誌
-    await this.logAuth(
-      email,
-      undefined,
-      'LOGIN_FAILURE',
-      ip,
-      userAgent,
-      detail,
-    );
-  }
-
-  /**
-   * 條件式記錄登入日誌（FeatureFlag 控制）
-   */
+  /** 條件式記錄登入日誌（FeatureFlag 控制） */
   private async logAuth(
     email: string,
     memberId: string | undefined,

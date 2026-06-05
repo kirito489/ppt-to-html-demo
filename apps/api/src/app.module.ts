@@ -1,6 +1,7 @@
 import { Module, RequestMethod } from '@nestjs/common';
 import type { Request } from 'express';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
@@ -10,20 +11,13 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { RedisModule } from './modules/redis.module';
 import { FeatureFlagModule } from './modules/feature-flag.module';
 import { AuthLogModule } from './modules/auth-log.module';
-import { SecurityModule } from './modules/security.module';
-import { RecaptchaModule } from './modules/recaptcha.module';
 import { SystemLogModule } from './modules/system-log.module';
-import { EmailModule } from './modules/email.module';
-import { FirebaseModule } from './modules/firebase.module';
-import { S3Module } from './modules/s3.module';
 import { MemberModule } from './modules/member.module';
 import { AuthModule } from './modules/auth.module';
-import { RoleModule } from './modules/role.module';
+import { PptModule } from './modules/ppt.module';
 import { GlobalExceptionFilter } from './adapter/in/web/filter/GlobalExceptionFilter';
 import { LoggingInterceptor } from './adapter/in/web/interceptor/LoggingInterceptor';
 import { TransformInterceptor } from './adapter/in/web/interceptor/TransformInterceptor';
-import { IpBlacklistGuard } from './adapter/in/web/guard/IpBlacklistGuard';
-import { IpWhitelistGuard } from './adapter/in/web/guard/IpWhitelistGuard';
 import { SessionIdleGuard } from './adapter/in/web/guard/SessionIdleGuard';
 import { HealthModule } from './modules/health.module';
 import { SentryModule } from '@sentry/nestjs/setup';
@@ -135,19 +129,16 @@ import { getEnv } from './infrastructure/validate-env';
         };
       },
     }),
+    // 排程：供 PPT 攝取定時掃描使用
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     FeatureFlagModule,
     AuthLogModule,
-    SecurityModule,
-    RecaptchaModule,
     SystemLogModule,
-    EmailModule,
-    FirebaseModule,
-    S3Module,
-    RoleModule,
     MemberModule,
     AuthModule,
+    PptModule,
     HealthModule,
     // Sentry NestJS 整合（事件實際送出與否由 instrument.ts 的 enabled 控制）
     SentryModule.forRoot(),
@@ -158,8 +149,6 @@ import { getEnv } from './infrastructure/validate-env';
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_GUARD, useClass: IpBlacklistGuard },
-    { provide: APP_GUARD, useClass: IpWhitelistGuard },
     { provide: APP_GUARD, useClass: SessionIdleGuard },
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
