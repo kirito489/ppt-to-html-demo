@@ -232,4 +232,50 @@ describe('Article E2E', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe('GET /api/articles/pending', () => {
+    it('無 JWT → 401', async () => {
+      const res = await request(app.getHttpServer()).get(
+        '/api/articles/pending',
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it('有 JWT → 200 + 列出公槽中待轉換的 .pptx', async () => {
+      // 先上傳一個檔到公槽，待轉換清單應列出它
+      await request(app.getHttpServer())
+        .post('/api/articles/upload')
+        .set('authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-pptx'), 'pending-demo.pptx');
+
+      const res = await request(app.getHttpServer())
+        .get('/api/articles/pending')
+        .set('authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      const items = (res.body as { data: { items: Array<{ name: string }> } })
+        .data.items;
+      expect(items.some((i) => i.name.endsWith('.pptx'))).toBe(true);
+    });
+  });
+
+  describe('GET /api/me', () => {
+    it('無 JWT → 401', async () => {
+      const res = await request(app.getHttpServer()).get('/api/me');
+      expect(res.status).toBe(401);
+    });
+
+    it('有 JWT → 200 + 回 { id, email, name }', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/me')
+        .set('authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      const body = res.body as {
+        data: { id: string; email: string; name: string };
+      };
+      expect(body.data.email).toBe('test@example.com');
+      expect(body.data.name).toBe('Test User');
+    });
+  });
 });

@@ -21,17 +21,17 @@
 ## 4. 前端：個人資料 + 待轉換清單
 
 - [x] 4.1 首頁個人資料：顯示「名稱」（`/me` 的 name）、移除「角色」列
-- [ ] 4.2 文章列表頁：上方「待轉換（N）」區塊（查 `/articles/pending`），列檔名 + 引導按「立即抓取轉換」；觸發/上傳後重整
+- [x] 4.2 文章列表頁：上方「待轉換（N）」區塊（查 `/articles/pending`），列檔名 + 引導按「立即抓取轉換」；觸發/上傳後重整
 
 ## 5. 前端：簡報模式翻頁
 
-- [ ] 5.1 詳情頁「轉換結果」加切換：捲動 / 簡報模式
-- [ ] 5.2 簡報模式：以 `</section>` 切頁、只渲染當前頁、上一頁/下一頁 + 頁碼 + 鍵盤 ←/→
+- [x] 5.1 詳情頁「轉換結果」加切換：捲動 / 簡報模式
+- [x] 5.2 簡報模式：以 `</section>` 切頁、只渲染當前頁、上一頁/下一頁 + 頁碼 + 鍵盤 ←/→
 
 ## 6. 測試 / 驗證 / 收尾
 
-- [ ] 6.1 補/更新單元測試（引擎 placeholder/背景/填色/對齊、ListPendingSources）
-- [ ] 6.2 article.e2e：`GET /articles/pending`（200/401）；`/me` 含 name
-- [ ] 6.3 `pnpm typecheck && pnpm lint && pnpm test`（含 e2e）全綠
+- [x] 6.1 補/更新單元測試（引擎 placeholder/背景/填色/對齊、ListPendingSources）
+- [x] 6.2 article.e2e：`GET /articles/pending`（200/401）；`/me` 含 name
+- [x] 6.3 `pnpm typecheck && pnpm lint && pnpm test`（含 e2e）全綠
 - [ ] 6.4 實機驗證：上傳→待轉換清單→抓取→詳情版面（標題/內文不疊、背景/填色還原）→簡報模式翻頁→個人資料名稱
 - [ ] 6.5 更新 `tasks/lessons.md`；提供繁中 conventional commit 訊息
