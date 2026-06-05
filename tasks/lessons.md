@@ -233,3 +233,10 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 
 - **文字框沒有 `<a:lnSpc>` 時別讓瀏覽器套 `normal`**：CJK 替代字型（Noto Sans TC/微軟正黑體）的 `line-height: normal` 約 1.4–1.5，比 PowerPoint 預設單行間距（約 1.2）鬆很多；文字量大的框（台股盤中右欄 600+ 字、20+ 行）會累積多出 15–25% 高度 → 溢出框、向下覆蓋頁尾聲明與 logo（看起來像「重疊／被截」，也讓 logo 看起來怪）。修法：`lineHeight()` 無 lnSpc 時回傳 `line-height:1.2`（常數），不裁字、不改字級即大幅收掉溢出。1.0 過緊、1.5 等同現況，1.2 為平衡點。
 - **「字太小」要先分清是 bug 還是忠實**：美股 s1 內文 sz=1600(16pt)、個股訊息 bullets 24pt 都是忠實照來源；看起來小是原稿本來字小留白多。忠實＝跟 PPT 一致；若硬放大填滿框反而偏離 PPT。回報「字小」時先量來源 sz 再決定動不動。
+
+## PPT 引擎：文字填滿、autofit、logo 去重（improve-text-fit-and-logo-dedup，2026-06-06）
+
+- **行高 1.2 過緊、1.35 才貼近 PP 中文單行**：稀疏內文（美股）用 1.2 會擠在框上半、看起來「不滿」；改 `DEFAULT_LINE_HEIGHT=1.35` 撐滿、貼近 PP。但這會讓密集框更易溢出 → 需搭配 autofit。單一行高值無法同時服務稀疏與密集框，故「較鬆行高 + autofit 縮字」組合。
+- **autofit 只對「大內容框」做，小框會被縮過頭**：第一版 autofit 把圖上紅字標籤（標普 16pt→9pt）、免責聲明都縮爆。修法：加門檻「框高 < 25% 投影片不縮」，只對 body 級大框 autofit。小標籤/頁尾本就緊框、PP 也不縮，跳過才對。
+- **autofit 估算法**：`cellsPerLine=floor(boxW/fontEmu)`（中文≈1em）、`lines=Σ ceil(段顯示格數/cellsPerLine)`、`needed=lines×fontEmu×行高`；`needed>boxH` 才 `scale=clamp(boxH/needed, 0.5, 1)`，乘到 div 與各 run 字級。純估算非瀏覽器量測，台股盤中右欄 16pt→12.5pt 塞回框、不裁字。
+- **logo 去重靠版面規則、不靠辨識圖片**：master 常同時放投顧＋證券兩個角落 logo，PP 該頁只顯示一個。引擎看不到圖片內容，改用版面規則：滿版裝飾圖（寬>50%，如頁首色條 banner）全留；角落小 logo（寬≤50%）若有多個只留**文件順序最後一個**（KGI 的當前品牌排在後＝投顧）。實機：美股 logo data URI 6→4、留投顧。
