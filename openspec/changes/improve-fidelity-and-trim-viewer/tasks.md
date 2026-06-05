@@ -16,9 +16,9 @@
 
 ## 3. 項目符號與編號還原（引擎，TDD）
 
-- [ ] 3.1 spec 合成 fixture：段落含 `buChar`（Wingdings `n`）、`buAutoNum`（arabicPeriod）、`buNone`，斷言輸出對應 ■／遞增序號／無符號；跑到 RED
-- [ ] 3.2 實作：解析 `<a:pPr>` 的 buNone/buChar/buAutoNum；Wingdings 常用碼對應表（n=■、l=●、u=◆、p=❖…）；buAutoNum 於文字框內維護序號；套 `buClr`/`buSzPct`，以前置 `<span>`+縮排渲染
-- [ ] 3.3 triad 全綠後勾選並提交（feat: 還原段落項目符號與自動編號）
+- [x] 3.1 spec 合成 fixture：段落含 `buChar`（Wingdings `n`）、`buAutoNum`（arabicPeriod）、`buNone`，斷言輸出對應 ■／遞增序號／無符號；跑到 RED
+- [x] 3.2 實作：解析 `<a:pPr>` 的 buNone/buChar/buAutoNum；Wingdings 常用碼對應表（n=■、l=●、u=◆、p=❖…）；buAutoNum 於文字框內維護序號；套 `buClr`/`buSzPct`，以前置 `<span>`+縮排渲染
+- [x] 3.3 triad 全綠後勾選並提交（feat: 還原段落項目符號與自動編號）
 
 ## 4. 文字繼承色與主題色還原（引擎，TDD）
 

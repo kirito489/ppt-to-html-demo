@@ -705,6 +705,7 @@ export class ConvertPptService implements ConvertPptUseCase {
     );
 
     const plainParts: string[] = [];
+    let autoNum = 0; // buAutoNum 序號計數（限本文字框）
     const htmlParagraphs = paragraphs.map((p) => {
       const pPr = p['a:pPr'] as XmlNode | undefined;
       const algn = pPr?.['@_algn'];
@@ -712,13 +713,18 @@ export class ConvertPptService implements ConvertPptUseCase {
         ? `text-align:${ALGN_MAP[String(algn)] ?? 'left'};`
         : '';
       const lineHeightStyle = this.lineHeight(pPr);
+      const bullet = this.bulletMarker(pPr, () => ++autoNum);
+      // 有項目符號時懸掛縮排，讓符號落在文字左側
+      const indentStyle = bullet
+        ? 'padding-left:1.5em;text-indent:-1.5em;'
+        : '';
       const runs = asArray(p['a:r'] as XmlNode[]);
       const spans = runs.map((r) => {
         const t = textOf(r['a:t']);
         plainParts.push(t);
         return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx)}">${escapeHtml(t)}</span>`;
       });
-      return `<p style="margin:0;${alignStyle}${lineHeightStyle}">${spans.join('')}</p>`;
+      return `<p style="margin:0;${alignStyle}${lineHeightStyle}${indentStyle}">${bullet}${spans.join('')}</p>`;
     });
 
     const text = plainParts.join('').trim() ? plainParts.join('\n') : '';
@@ -889,6 +895,65 @@ export class ConvertPptService implements ConvertPptUseCase {
     const pts = (lnSpc['a:spcPts'] as XmlNode | undefined)?.['@_val'];
     if (pts) return `line-height:${Number(pts) / 100}pt;`;
     return '';
+  }
+
+  // Wingdings 常用項目符號碼 → Unicode
+  private static readonly WINGDINGS_BULLET: Record<string, string> = {
+    n: '■',
+    l: '●',
+    u: '◆',
+    p: '❖',
+    v: '❖',
+    w: '◆',
+  };
+
+  /**
+   * 解析段落 `<a:pPr>` 的項目符號，回傳前置 marker 的 HTML（無則空字串）。
+   * 支援 buNone（不顯示）、buChar（含 Wingdings 對應）、buAutoNum（自動編號）。
+   * @param nextNum buAutoNum 取下一個序號（由呼叫端維護文字框內計數）
+   */
+  private bulletMarker(
+    pPr: XmlNode | undefined,
+    nextNum: () => number,
+  ): string {
+    if (!pPr || pPr['a:buNone'] !== undefined) return '';
+    const buChar = pPr['a:buChar'] as XmlNode | undefined;
+    const buAuto = pPr['a:buAutoNum'] as XmlNode | undefined;
+    if (!buChar && !buAuto) return '';
+
+    const buClr = srgbVal(pPr['a:buClr'] as XmlNode | undefined);
+    const colorStyle = buClr ? `color:#${buClr};` : '';
+    const szPct = (pPr['a:buSzPct'] as XmlNode | undefined)?.['@_val'];
+    const sizeStyle = szPct
+      ? `font-size:${round(Number(szPct) / 100000, 2)}em;`
+      : '';
+    const style = `${colorStyle}${sizeStyle}margin-right:0.4em;`;
+
+    let marker: string;
+    if (buChar) {
+      const ch = String(buChar['@_char'] ?? '');
+      const buFont = (pPr['a:buFont'] as XmlNode | undefined)?.['@_typeface'];
+      marker = this.bulletGlyph(ch, buFont ? String(buFont) : undefined);
+    } else {
+      const type = String(buAuto?.['@_type'] ?? 'arabicPeriod');
+      marker = this.formatAutoNum(nextNum(), type);
+    }
+    return `<span style="${style}">${escapeHtml(marker)}</span>`;
+  }
+
+  /** buChar 字元 → 顯示字形（Wingdings 走對應表，其餘原樣輸出） */
+  private bulletGlyph(ch: string, font?: string): string {
+    if (font && /wingdings/i.test(font)) {
+      return ConvertPptService.WINGDINGS_BULLET[ch] ?? '■';
+    }
+    return ch || '•';
+  }
+
+  /** buAutoNum 序號格式化（常見阿拉伯數字格式，其餘退 `N.`） */
+  private formatAutoNum(n: number, type: string): string {
+    if (type.startsWith('arabicParenBoth')) return `(${n})`;
+    if (type.startsWith('arabicParenR')) return `${n})`;
+    return `${n}.`;
   }
 
   /** OOXML 字級（百分點）→ cqw（容器寬度單位，相對投影片寬） */
