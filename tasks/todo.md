@@ -6,6 +6,8 @@ _Tasks and cross-module items tracked across sessions._
 
 ## 完成項目
 
+- [x] **文字填滿/autofit/logo 去重（improve-text-fit-and-logo-dedup，2026-06-06）** — 預設行高 1.2→1.35（稀疏內文撐滿）、大內容框 autofit 縮字（台股盤中右欄 16→12.5pt 塞回框不溢出、小標籤不縮）、角落多 logo 去重只留最後一個（投顧）保留 banner。TDD + triad + e2e 全綠（api 131/web 30/e2e 34）。
+
 - [x] **文字框預設行高（default-line-height-for-text，2026-06-06）** — 無 `<a:lnSpc>` 時套近 PP 單行的 `line-height:1.2`（取代瀏覽器 normal ~1.4–1.5），修台股盤中右欄長文溢出覆蓋頁尾/logo；不裁字、不改字級。TDD + triad 全綠。
 
 - [x] **版面圖片與字級繼承（improve-master-graphics-and-text-inheritance，2026-06-06）** — 走 openspec + 逐塊 TDD，api 126／web 30／e2e 34 全綠：

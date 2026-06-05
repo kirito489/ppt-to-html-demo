@@ -23,8 +23,10 @@ const EMU_PER_POINT = 12700;
 const DEFAULT_CX = 9144000;
 const DEFAULT_CY = 6858000;
 const DEFAULT_FONT_SIZE = 1800; // 18pt（OOXML 以百分點表示）
-// 無 a:lnSpc 時的預設行高：近似 PowerPoint 單行間距，較瀏覽器 normal（CJK ~1.4-1.5）緊以抑制溢出
-const DEFAULT_LINE_HEIGHT = 1.2;
+// 無 a:lnSpc 時的預設行高：近似 PowerPoint 中文單行的渲染行高（微軟正黑體/Noto Sans TC）
+const DEFAULT_LINE_HEIGHT = 1.35;
+// autofit 縮放下限：避免極度超框時字級縮到無法閱讀
+const MIN_AUTOFIT_SCALE = 0.5;
 
 const SUPPORTED_IMAGE_EXT: Record<string, string> = {
   png: 'image/png',
@@ -622,13 +624,37 @@ export class ConvertPptService implements ConvertPptUseCase {
       | undefined;
     if (!spTree) return [];
     const rels = await this.readSlideRels(zip, xmlPath);
-    const parts: string[] = [];
     // 含群組內（如 logo 常包在 grpSp）；忽略群組變換、以子元素自身座標定位
-    for (const pic of this.collectDecorPics(spTree)) {
+    const pics = this.dedupDecorPics(this.collectDecorPics(spTree), cx);
+    const parts: string[] = [];
+    for (const pic of pics) {
       const { html } = await this.convertPicture(zip, pic, rels, cx, cy);
       parts.push(html);
     }
     return parts;
+  }
+
+  /**
+   * 角落 logo 去重：滿版裝飾圖（寬 > 50% 投影片，如頁首色條）全留；
+   * 視為「角落小 logo」者（寬 ≤ 50%）若有多個，只保留文件順序最後一個，
+   * 避免同時出現多個品牌 logo（如投顧＋證券）。
+   */
+  private dedupDecorPics(pics: XmlNode[], cx: number): XmlNode[] {
+    const isSmall = (pic: XmlNode): boolean => {
+      const ext = (
+        (pic['p:spPr'] as XmlNode | undefined)?.['a:xfrm'] as
+          | XmlNode
+          | undefined
+      )?.['a:ext'] as XmlNode | undefined;
+      const w = Number(ext?.['@_cx']) || 0;
+      return w > 0 && w <= cx * 0.5;
+    };
+    let lastSmall = -1;
+    pics.forEach((p, i) => {
+      if (isSmall(p)) lastSmall = i;
+    });
+    if (lastSmall < 0) return pics;
+    return pics.filter((p, i) => !isSmall(p) || i === lastSmall);
   }
 
   /** 遞迴收集容器（含巢狀 grpSp）內的非 placeholder 圖片 */
@@ -961,6 +987,9 @@ export class ConvertPptService implements ConvertPptUseCase {
     const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);
 
+    // autofit：內容估算高度超框時等比縮小字級（近似 PowerPoint normAutofit）
+    const scale = this.autofitScale(xfrm, paragraphs, baseSize, cy);
+
     // 以首個 run 的字型為代表，套於整個文字框（補 CJK fallback 抑制替代字型行高差異）
     const firstRun = asArray(paragraphs[0]?.['a:r'] as XmlNode[])[0];
     const fontFamilyStyle = this.fontFamily(
@@ -985,13 +1014,13 @@ export class ConvertPptService implements ConvertPptUseCase {
       const spans = runs.map((r) => {
         const t = textOf(r['a:t']);
         plainParts.push(t);
-        return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx, resolveScheme, defaultColor)}">${escapeHtml(t)}</span>`;
+        return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx, resolveScheme, defaultColor, scale)}">${escapeHtml(t)}</span>`;
       });
       return `<p style="margin:0;${alignStyle}${lineHeightStyle}${indentStyle}">${bullet}${spans.join('')}</p>`;
     });
 
     const text = plainParts.join('').trim() ? plainParts.join('\n') : '';
-    const html = `<div style="position:absolute;${pos}${fillStyle}${fontFamilyStyle}font-size:${this.fontCqw(baseSize, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
+    const html = `<div style="position:absolute;${pos}${fillStyle}${fontFamilyStyle}font-size:${round(this.fontCqw(baseSize, cx) * scale, 3)}cqw;">${htmlParagraphs.join('')}</div>`;
 
     return {
       html,
@@ -1176,6 +1205,7 @@ export class ConvertPptService implements ConvertPptUseCase {
     cx: number,
     resolveScheme: SchemeResolver,
     defaultColor?: string,
+    scale = 1,
   ): string {
     const parts: string[] = [];
     if (rPr?.['@_b'] === '1' || rPr?.['@_b'] === 1)
@@ -1185,7 +1215,8 @@ export class ConvertPptService implements ConvertPptUseCase {
     if (rPr?.['@_u'] && rPr['@_u'] !== 'none')
       parts.push('text-decoration:underline;');
     const sz = Number(rPr?.['@_sz']);
-    if (sz) parts.push(`font-size:${this.fontCqw(sz, cx)}cqw;`);
+    if (sz)
+      parts.push(`font-size:${round(this.fontCqw(sz, cx) * scale, 3)}cqw;`);
     // 色：run srgbClr → schemeClr（主題色）→ placeholder 繼承色
     const color = this.runColor(rPr, resolveScheme) ?? defaultColor;
     if (color) parts.push(`color:#${color};`);
@@ -1290,6 +1321,57 @@ export class ConvertPptService implements ConvertPptUseCase {
     if (type.startsWith('arabicParenBoth')) return `(${n})`;
     if (type.startsWith('arabicParenR')) return `${n})`;
     return `${n}.`;
+  }
+
+  /**
+   * autofit：估算文字框內容所需高度，超過框高時回傳等比縮小比例（近似 normAutofit）。
+   * 估算以「顯示格數 ÷ 每行格數 = 行數」推算高度（中文約 1em 寬），非瀏覽器精確量測。
+   * 框無明確尺寸時回傳 1（不縮放）。
+   */
+  private autofitScale(
+    xfrm: XmlNode | undefined,
+    paragraphs: XmlNode[],
+    baseSize: number,
+    slideCy: number,
+  ): number {
+    const ext = xfrm?.['a:ext'] as XmlNode | undefined;
+    const boxCx = Number(ext?.['@_cx']) || 0;
+    const boxCy = Number(ext?.['@_cy']) || 0;
+    if (boxCx <= 0 || boxCy <= 0) return 1;
+    // 只對「夠大的內容框」做 autofit；小標籤/頁尾（高度 < 25% 投影片）不縮，
+    // 避免把圖上文字標籤、免責聲明等緊框文字縮過頭
+    if (boxCy < slideCy * 0.25) return 1;
+    // 代表字級（百分點）：框內最大 run sz 與 baseSize 取大者
+    let repSz = baseSize;
+    for (const p of paragraphs) {
+      for (const r of asArray(p['a:r'] as XmlNode[])) {
+        const sz = Number((r['a:rPr'] as XmlNode | undefined)?.['@_sz']);
+        if (sz > repSz) repSz = sz;
+      }
+    }
+    const fontEmu = (repSz / 100) * EMU_PER_POINT;
+    if (fontEmu <= 0) return 1;
+    const cellsPerLine = Math.max(1, Math.floor(boxCx / fontEmu));
+    let lines = 0;
+    for (const p of paragraphs) {
+      let cells = 0;
+      for (const r of asArray(p['a:r'] as XmlNode[])) {
+        cells += this.displayCells(textOf(r['a:t']));
+      }
+      lines += Math.max(1, Math.ceil(cells / cellsPerLine));
+    }
+    const neededEmu = lines * fontEmu * DEFAULT_LINE_HEIGHT;
+    if (neededEmu <= boxCy) return 1;
+    return Math.max(MIN_AUTOFIT_SCALE, boxCy / neededEmu);
+  }
+
+  /** 文字顯示格數：CJK／全形約 1em（1 格），其餘約 0.5 格 */
+  private displayCells(s: string): number {
+    let cells = 0;
+    for (const ch of s) {
+      cells += /[　-鿿＀-｠]/.test(ch) ? 1 : 0.5;
+    }
+    return cells;
   }
 
   /** OOXML 字級（百分點）→ cqw（容器寬度單位，相對投影片寬） */

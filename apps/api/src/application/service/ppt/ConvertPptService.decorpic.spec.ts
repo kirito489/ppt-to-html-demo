@@ -77,3 +77,66 @@ describe('ConvertPptService layout/master 非 placeholder 圖片（logo）', () 
     expect(accuracy.overall).toBeLessThanOrEqual(1);
   });
 });
+
+// master：滿版 banner + 兩個角落小 logo（A 在前、B 在後）
+const buildWithBannerAndLogos = async (): Promise<Buffer> => {
+  const zip = new JSZip();
+  zip.file(
+    'ppt/presentation.xml',
+    `<?xml version="1.0"?><p:presentation xmlns:p="p" xmlns:r="r"><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst><p:sldSz cx="${SLIDE_CX}" cy="${SLIDE_CY}"/></p:presentation>`,
+  );
+  zip.file(
+    'ppt/_rels/presentation.xml.rels',
+    `<?xml version="1.0"?><Relationships><Relationship Id="rId1" Type="slide" Target="slides/slide1.xml"/></Relationships>`,
+  );
+  zip.file(
+    'ppt/slides/slide1.xml',
+    `<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree><p:sp><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3000000" cy="1000000"/></a:xfrm></p:spPr><p:txBody><a:p><a:r><a:t>內文</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>`,
+  );
+  zip.file(
+    'ppt/slides/_rels/slide1.xml.rels',
+    `<?xml version="1.0"?><Relationships><Relationship Id="rIdL" Type="slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>`,
+  );
+  zip.file(
+    'ppt/slideLayouts/slideLayout1.xml',
+    `<?xml version="1.0"?><p:sldLayout xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree/></p:cSld></p:sldLayout>`,
+  );
+  zip.file(
+    'ppt/slideLayouts/_rels/slideLayout1.xml.rels',
+    `<?xml version="1.0"?><Relationships><Relationship Id="rIdM" Type="slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`,
+  );
+  // banner 滿版（cx=SLIDE_CX）、logoA、logoB 皆小角落
+  const banner = `<p:pic><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${SLIDE_CX}" cy="600000"/></a:xfrm></p:spPr><p:blipFill><a:blip r:embed="rIdBanner"/></p:blipFill></p:pic>`;
+  const logoA = `<p:pic><p:spPr><a:xfrm><a:off x="9000000" y="6300000"/><a:ext cx="1000000" cy="400000"/></a:xfrm></p:spPr><p:blipFill><a:blip r:embed="rIdA"/></p:blipFill></p:pic>`;
+  const logoB = `<p:pic><p:spPr><a:xfrm><a:off x="10500000" y="6300000"/><a:ext cx="1000000" cy="400000"/></a:xfrm></p:spPr><p:blipFill><a:blip r:embed="rIdB"/></p:blipFill></p:pic>`;
+  zip.file(
+    'ppt/slideMasters/slideMaster1.xml',
+    `<?xml version="1.0"?><p:sldMaster xmlns:p="p" xmlns:a="a" xmlns:r="r"><p:cSld><p:spTree>${banner}${logoA}${logoB}</p:spTree></p:cSld></p:sldMaster>`,
+  );
+  zip.file(
+    'ppt/slideMasters/_rels/slideMaster1.xml.rels',
+    `<?xml version="1.0"?><Relationships><Relationship Id="rIdBanner" Type="image" Target="../media/banner.png"/><Relationship Id="rIdA" Type="image" Target="../media/logoA.png"/><Relationship Id="rIdB" Type="image" Target="../media/logoB.png"/></Relationships>`,
+  );
+  zip.file('ppt/media/banner.png', Buffer.from('banner-bytes'));
+  zip.file('ppt/media/logoA.png', Buffer.from('LOGO-A'));
+  zip.file('ppt/media/logoB.png', Buffer.from('LOGO-B'));
+  return zip.generateAsync({ type: 'nodebuffer' });
+};
+
+describe('ConvertPptService 角落 logo 去重', () => {
+  const service = new ConvertPptService();
+
+  it('滿版 banner 保留、角落小 logo 只留最後一個', async () => {
+    const { html } = await service.execute({
+      buffer: await buildWithBannerAndLogos(),
+      filename: 'd.pptx',
+    });
+    const b64 = (s: string): string => Buffer.from(s).toString('base64');
+    // banner 保留
+    expect(html).toContain(b64('banner-bytes'));
+    // 最後一個小 logo（B）保留
+    expect(html).toContain(b64('LOGO-B'));
+    // 第一個小 logo（A）被去除
+    expect(html).not.toContain(b64('LOGO-A'));
+  });
+});
