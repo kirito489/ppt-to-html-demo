@@ -10,9 +10,9 @@
 
 ## 2. placeholder 字級／顏色繼承優先取 lstStyle（引擎，TDD）
 
-- [ ] 2.1 spec 合成 fixture：idx-only 內容框（無 type、run 無 sz/color），其在 layout 的 placeholder `lstStyle` lvl1 `defRPr` 設 sz=2400 與顏色；另含「僅 master txStyles 有值」的後備案例；斷言字級取 24pt（非 18pt）、顏色正確、後備仍走 txStyles；跑到 RED
-- [ ] 2.2 實作：`readPlaceholders` 增讀 placeholder `lstStyle` lvl1 `defRPr` 的 sz 與顏色（srgb/scheme 原值）；新增依 idx/type 比對的 lstStyle 解析；`resolveDefaultSize`／`resolveDefaultColor` 改為 placeholder lstStyle(layout→master) → master txStyles(依 type) → 預設；schemeClr 經 `resolveScheme`
-- [ ] 2.3 triad 全綠後勾選並提交（fix: placeholder 字級/顏色優先取 layout lstStyle，修字太小）
+- [x] 2.1 spec 合成 fixture：idx-only 內容框（無 type、run 無 sz/color），其在 layout 的 placeholder `lstStyle` lvl1 `defRPr` 設 sz=2400 與顏色；另含「僅 master txStyles 有值」的後備案例；斷言字級取 24pt（非 18pt）、顏色正確、後備仍走 txStyles；跑到 RED
+- [x] 2.2 實作：`readPlaceholders` 增讀 placeholder `lstStyle` lvl1 `defRPr` 的 sz 與顏色（srgb/scheme 原值）；新增依 idx/type 比對的 lstStyle 解析；`resolveDefaultSize`／`resolveDefaultColor` 改為 placeholder lstStyle(layout→master) → master txStyles(依 type) → 預設；schemeClr 經 `resolveScheme`
+- [x] 2.3 triad 全綠後勾選並提交（fix: placeholder 字級/顏色優先取 layout lstStyle，修字太小）
 
 ## 3. 驗證
 
