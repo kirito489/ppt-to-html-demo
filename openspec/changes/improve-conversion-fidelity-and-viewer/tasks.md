@@ -6,10 +6,10 @@
 
 ## 2. 引擎：背景 / 填色 / 對齊（TDD）
 
-- [ ] 2.1 先寫 spec：背景 solidFill、形狀 solidFill、表格儲存格填色、段落 algn 各一案
-- [ ] 2.2 投影片背景：slide→layout→master `<p:bg>`（solidFill / 線性漸層）→ 套 `.ppt-slide` 背景
-- [ ] 2.3 形狀 `solidFill` → 元素底色；表格儲存格 `tcPr/solidFill` → td 底色；`noFill` 透明
-- [ ] 2.4 段落 `pPr@algn` → text-align；所有 2.x spec 綠
+- [x] 2.1 先寫 spec：背景 solidFill、形狀 solidFill、表格儲存格填色、段落 algn 各一案
+- [x] 2.2 投影片背景：slide→layout→master `<p:bg>`（solidFill / 線性漸層）→ 套 `.ppt-slide` 背景
+- [x] 2.3 形狀 `solidFill` → 元素底色；表格儲存格 `tcPr/solidFill` → td 底色；`noFill` 透明
+- [x] 2.4 段落 `pPr@algn` → text-align；所有 2.x spec 綠
 
 ## 3. 後端：待轉換 API + /me 名稱
 
