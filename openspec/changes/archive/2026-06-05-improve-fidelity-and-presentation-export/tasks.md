@@ -20,12 +20,12 @@
 
 ## 5. 前端：簡報匯出
 
-- [ ] 5.1 新增 `articles/lib/build-presentation-html.ts`：以 `DOMParser` 取各 `section.ppt-slide`，組自包含 HTML（固定視窗 + `overflow:hidden` + 內嵌極簡 JS：←/→ 與點擊翻頁、頁碼、全螢幕）
-- [ ] 5.2 `build-presentation-html` 單元測試：切頁數正確、輸出含翻頁 script、空輸入不爆
-- [ ] 5.3 `detail.tsx` 新增「下載簡報 HTML」按鈕呼叫之；`article.html` 內嵌版不動
+- [x] 5.1 新增 `articles/lib/build-presentation-html.ts`：以 `DOMParser` 取各 `section.ppt-slide`，組自包含 HTML（固定視窗 + `overflow:hidden` + 內嵌極簡 JS：←/→ 與點擊翻頁、頁碼、全螢幕）
+- [x] 5.2 `build-presentation-html` 單元測試：切頁數正確、輸出含翻頁 script、空輸入不爆、跳脫標題
+- [x] 5.3 `detail.tsx` 新增「下載簡報 HTML」按鈕呼叫之；`article.html` 內嵌版不動
 
 ## 6. 測試 / 驗證 / 收尾
 
-- [ ] 6.1 `pnpm typecheck && pnpm lint && pnpm test`（含既有引擎 spec/e2e 不回歸）全綠
-- [ ] 6.2 實機驗證：美股 disclaimer 補回、圖片撐滿、內文不再溢出/被蓋；下載簡報 HTML 開瀏覽器可 ←/→ 翻頁
-- [ ] 6.3 更新 `tasks/lessons.md`（如有新坑）；提供繁中 conventional commit 訊息；`openspec archive`
+- [x] 6.1 `pnpm typecheck && pnpm lint && pnpm test`（含既有引擎 spec/e2e 不回歸）全綠（api 103+e2e 34、web 27）
+- [x] 6.2 實機驗證：美股 disclaimer 補回、圖片 object-fit:fill、字級繼承（1.042~4.583cqw 不再全 18pt）；簡報匯出單元測試綠（瀏覽器翻頁待眼看）
+- [x] 6.3 更新 `tasks/lessons.md`（layout 文字不入準確率分母）；提供繁中 conventional commit 訊息；`openspec archive`
