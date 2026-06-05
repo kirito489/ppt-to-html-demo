@@ -735,7 +735,12 @@ export class ConvertPptService implements ConvertPptUseCase {
       htmlParts.push(html);
     };
     const renderGf = (gf: XmlNode): void => {
-      const { html, element } = this.convertGraphicFrame(gf, cx, cy);
+      const { html, element } = this.convertGraphicFrame(
+        gf,
+        cx,
+        cy,
+        resolveScheme,
+      );
       elements.push(element);
       htmlParts.push(html);
     };
@@ -920,6 +925,7 @@ export class ConvertPptService implements ConvertPptUseCase {
     gf: XmlNode,
     cx: number,
     cy: number,
+    resolveScheme: SchemeResolver,
   ): { html: string; element: InventoryElement } {
     const pos = this.positionStyle(gf['p:xfrm'] as XmlNode | undefined, cx, cy);
     const graphic = gf['a:graphic'] as XmlNode | undefined;
@@ -928,7 +934,11 @@ export class ConvertPptService implements ConvertPptUseCase {
     const tbl = graphicData?.['a:tbl'] as XmlNode | undefined;
 
     if (uri.includes('table') && tbl) {
-      const { html: tableHtml, cells } = this.convertTable(tbl);
+      const { html: tableHtml, cells } = this.convertTable(
+        tbl,
+        cx,
+        resolveScheme,
+      );
       const html = `<div style="position:absolute;${pos}">${tableHtml}</div>`;
       return {
         html,
@@ -948,10 +958,35 @@ export class ConvertPptService implements ConvertPptUseCase {
     };
   }
 
-  private convertTable(tbl: XmlNode): { html: string; cells: string[][] } {
+  private convertTable(
+    tbl: XmlNode,
+    cx: number,
+    resolveScheme: SchemeResolver,
+  ): { html: string; cells: string[][] } {
+    // 欄寬：依 a:gridCol/@w 比例產出 colgroup（避免欄寬失真）
+    const gridCols = asArray(
+      (tbl['a:tblGrid'] as XmlNode | undefined)?.['a:gridCol'] as XmlNode[],
+    );
+    const colWidths = gridCols.map((c) => Number(c['@_w']) || 0);
+    const colTotal = colWidths.reduce((s, w) => s + w, 0);
+    const colgroup =
+      colTotal > 0
+        ? `<colgroup>${colWidths
+            .map((w) => `<col style="width:${round((w / colTotal) * 100)}%;"/>`)
+            .join('')}</colgroup>`
+        : '';
+
+    // 列高：依 a:tr/@h 比例分配（h=0 視為自動，不計入分母）
     const rows = asArray(tbl['a:tr'] as XmlNode[]);
+    const rowHeights = rows.map((tr) => Number(tr['@_h']) || 0);
+    const rowTotal = rowHeights.reduce((s, h) => s + h, 0);
+
     const cells: string[][] = [];
-    const rowHtml = rows.map((tr) => {
+    const rowHtml = rows.map((tr, ri) => {
+      const heightStyle =
+        rowTotal > 0 && rowHeights[ri] > 0
+          ? `height:${round((rowHeights[ri] / rowTotal) * 100)}%;`
+          : '';
       const tcs = asArray(tr['a:tc'] as XmlNode[]);
       const rowCells: string[] = [];
       const cellHtml = tcs.map((tc) => {
@@ -960,13 +995,35 @@ export class ConvertPptService implements ConvertPptUseCase {
         rowCells.push(text);
         const fill = solidFillColor(tc['a:tcPr'] as XmlNode | undefined);
         const fillStyle = fill ? `background:#${fill};` : '';
-        return `<td style="border:1px solid #d1d5db;padding:0.4cqw 0.8cqw;${fillStyle}">${escapeHtml(text)}</td>`;
+        return `<td style="border:1px solid #d1d5db;padding:0.4cqw 0.8cqw;${fillStyle}${this.cellTextStyle(txBody, cx, resolveScheme)}">${escapeHtml(text)}</td>`;
       });
       cells.push(rowCells);
-      return `<tr>${cellHtml.join('')}</tr>`;
+      return `<tr style="${heightStyle}">${cellHtml.join('')}</tr>`;
     });
-    const html = `<table style="width:100%;height:100%;border-collapse:collapse;font-size:2cqw;">${rowHtml.join('')}</table>`;
+    // font-size 2cqw 僅作為儲存格未指定字級時的退路
+    const html = `<table style="width:100%;height:100%;border-collapse:collapse;font-size:2cqw;table-layout:fixed;">${colgroup}${rowHtml.join('')}</table>`;
     return { html, cells };
+  }
+
+  /** 儲存格文字樣式：取首個 run 的字級/顏色/粗體/對齊（cqw 字級避免寫死過大溢出） */
+  private cellTextStyle(
+    txBody: XmlNode | undefined,
+    cx: number,
+    resolveScheme: SchemeResolver,
+  ): string {
+    const firstPara = asArray(txBody?.['a:p'] as XmlNode[])[0];
+    const firstRun = asArray(firstPara?.['a:r'] as XmlNode[])[0];
+    const rPr = firstRun?.['a:rPr'] as XmlNode | undefined;
+    const parts: string[] = [];
+    const sz = Number(rPr?.['@_sz']);
+    if (sz) parts.push(`font-size:${this.fontCqw(sz, cx)}cqw;`);
+    if (rPr?.['@_b'] === '1' || rPr?.['@_b'] === 1)
+      parts.push('font-weight:bold;');
+    const color = this.runColor(rPr, resolveScheme);
+    if (color) parts.push(`color:#${color};`);
+    const algn = (firstPara?.['a:pPr'] as XmlNode | undefined)?.['@_algn'];
+    if (algn) parts.push(`text-align:${ALGN_MAP[String(algn)] ?? 'left'};`);
+    return parts.join('');
   }
 
   private extractTxBodyText(txBody: XmlNode | undefined): string {

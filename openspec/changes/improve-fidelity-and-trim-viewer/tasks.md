@@ -28,9 +28,9 @@
 
 ## 5. 表格保真度（引擎，TDD）
 
-- [ ] 5.1 spec 合成 fixture：表格含 `gridCol` 欄寬、`tr h` 列高、儲存格 run 帶字級/顏色/粗體；斷言輸出 `colgroup` 欄寬、列高、儲存格樣式且不寫死字級；跑到 RED
-- [ ] 5.2 實作：`convertTable` 依 `tblGrid/gridCol` 產 `colgroup`、`tr h` 設列高、儲存格讀首個 run `rPr` 套字級(cqw)/顏色/粗體（沿用 D4 色彩解析），保留底色/框線
-- [ ] 5.3 triad 全綠後勾選並提交（fix: 表格還原欄寬/列高/儲存格樣式，避免超框被裁）
+- [x] 5.1 spec 合成 fixture：表格含 `gridCol` 欄寬、`tr h` 列高、儲存格 run 帶字級/顏色/粗體；斷言輸出 `colgroup` 欄寬、列高、儲存格樣式且不寫死字級；跑到 RED
+- [x] 5.2 實作：`convertTable` 依 `tblGrid/gridCol` 產 `colgroup`、`tr h` 設列高、儲存格讀首個 run `rPr` 套字級(cqw)/顏色/粗體（沿用 D4 色彩解析），保留底色/框線
+- [x] 5.3 triad 全綠後勾選並提交（fix: 表格還原欄寬/列高/儲存格樣式，避免超框被裁）
 
 ## 6. 前端預覽精簡（前端）
 
