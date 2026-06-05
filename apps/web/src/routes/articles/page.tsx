@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Upload } from 'lucide-react'
 
 import { useApiMutation, useApiQuery } from '@/api/client'
+import { tokenStorage } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -29,6 +30,9 @@ export const ArticlesListPage = () => {
   })
   const ingest = useApiMutation('POST', '/articles/ingest')
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
   const handleIngest = async () => {
     try {
       const job = await ingest.mutateAsync({})
@@ -41,6 +45,33 @@ export const ArticlesListPage = () => {
     }
   }
 
+  // 上傳走原生 fetch（multipart 透過型別化 client 較不便）；只把檔案存進公槽，不在此轉換
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/articles/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${tokenStorage.get() ?? ''}` },
+        body: form,
+      })
+      const body = (await res.json()) as {
+        data?: { filename?: string }
+        message?: string
+      }
+      if (!res.ok) throw new Error(body.message ?? '上傳失敗')
+      toast.success(
+        `已上傳「${body.data?.filename}」到公槽，請按「立即抓取轉換」或等排程`,
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '上傳失敗')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const items = articlesQuery.data?.items ?? []
   const meta = articlesQuery.data?.meta
 
@@ -48,10 +79,30 @@ export const ArticlesListPage = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>轉換文章</CardTitle>
-        <Button onClick={handleIngest} disabled={ingest.isPending}>
-          <RefreshCw className={ingest.isPending ? 'animate-spin' : ''} />
-          {ingest.isPending ? '抓取中…' : '立即抓取轉換'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pptx"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void handleUpload(file)
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Upload />
+            {uploading ? '上傳中…' : '上傳 PPT'}
+          </Button>
+          <Button onClick={handleIngest} disabled={ingest.isPending}>
+            <RefreshCw className={ingest.isPending ? 'animate-spin' : ''} />
+            {ingest.isPending ? '抓取中…' : '立即抓取轉換'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {articlesQuery.isLoading && (

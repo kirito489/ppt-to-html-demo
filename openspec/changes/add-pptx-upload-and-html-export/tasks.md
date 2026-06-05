@@ -19,8 +19,8 @@
 
 ## 5. 前端
 
-- [ ] 5.1 文章列表頁「上傳 PPT」按鈕：隱藏 `<input type=file accept=.pptx>` + 原生 `fetch` 帶 `Authorization`，成功後 `toast`（引導按「立即抓取轉換」）
-- [ ] 5.2 文章詳情頁「下載 HTML」（Blob → a[download]）與「複製 HTML」（clipboard）按鈕
+- [x] 5.1 文章列表頁「上傳 PPT」按鈕：隱藏 `<input type=file accept=.pptx>` + 原生 `fetch` 帶 `Authorization`，成功後 `toast`（引導按「立即抓取轉換」）
+- [x] 5.2 文章詳情頁「下載 HTML」（Blob → a[download]）與「複製 HTML」（clipboard）按鈕
 
 ## 6. 測試
 
