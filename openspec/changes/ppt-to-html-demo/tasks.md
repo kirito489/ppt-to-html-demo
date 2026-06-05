@@ -68,9 +68,9 @@
 
 ## 10. 測試
 
-- [ ] 10.1 補轉換引擎與攝取 service 單元測試（含準確率邊界、容錯）
-- [ ] 10.2 新增 `article.e2e-spec.ts`（list/get/ingest/jobs + 登入保護），移除舊 e2e
-- [ ] 10.3 `pnpm typecheck && pnpm lint && pnpm test` 全綠
+- [x] 10.1 補轉換引擎與攝取 service 單元測試（含準確率邊界、容錯）
+- [x] 10.2 新增 `article.e2e-spec.ts`（list/get/ingest/jobs + 登入保護），移除舊 e2e
+- [x] 10.3 `pnpm typecheck && pnpm lint && pnpm test` 全綠
 
 ## 11. 樣本與端到端驗證
 

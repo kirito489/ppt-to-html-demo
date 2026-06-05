@@ -23,3 +23,8 @@ process.env.NOTIFICATION_ALARM_HOUR = '8';
 process.env.NOTIFICATION_ALARM_MINUTE = '0';
 process.env.AWS_MEDIA_LIBRARY_ROOT = 'local';
 process.env.INGEST_SCHEDULE_ENABLED = 'false'; // 測試不啟動 PPT 攝取排程
+// 攝取來源指向暫存空目錄，避免 e2e 動到 demo 樣本
+import { tmpdir } from 'os';
+import { join } from 'path';
+process.env.INGEST_SOURCE_DIR = join(tmpdir(), 'ppt-e2e-incoming');
+process.env.INGEST_PROCESSED_DIR = join(tmpdir(), 'ppt-e2e-processed');
