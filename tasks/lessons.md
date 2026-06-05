@@ -204,3 +204,19 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 - **e2e 若真的寫入檔案系統（如上傳 adapter 寫入來源資料夾），測試會跨次執行互相污染**：上傳 e2e 把檔案寫進暫存 incoming，導致後續「來源為空 → 攝取 0 筆」的測試在第二次執行時失敗（incoming 殘留上次上傳檔）。**Why:** 2026-06-05 上傳 e2e 加完後，第二次 `test:e2e` 攝取測試紅。**How to apply:** 寫真實 fs 的 e2e 在 `beforeAll` 先清乾淨目標目錄（`rm(dir, { recursive, force })`）；來源目錄已由 `setup-env` 指向 `os.tmpdir()` 下的暫存路徑（不碰 demo 樣本），清理零風險。
 
 - **新增 out port 方法，所有實作該 port 的 mock spec 都要補上 `jest.fn()`**：`SourceStoragePort` 加 `save()` 後，`IngestPptService.spec` 的 `jest.Mocked<SourceStoragePort>` 立刻 TS 報缺 `save`。擴 port 介面時記得掃既有 mock。
+
+## PPT 引擎保真度（improve-fidelity-and-trim-viewer，2026-06-06）
+
+- **fast-xml-parser 具名鍵模式會遺失「跨型別兄弟順序」，導致 z 上下層錯亂**：原 `walkShapes` 先畫全部 `p:sp`、再畫全部 `p:pic`，把文件順序打散。PPT 的 z 順序＝spTree 文件順序（後者疊在上），所以「圖片在前、文字在後」的投影片（美股 s1：`pic,pic,sp,sp,sp,sp`）會被反過來→圖蓋住該在上層的紅字框、紅字框消失。**Why:** 2026-06-06 美股紅字框不見。**How to apply:** 不需改 `preserveOrder:true`（會逼整支重寫）；改掃容器原始 XML 取直屬子形狀「型別序列」（深度計數排除巢狀 grpSp），再依序從各型別已解析陣列取出渲染，DOM 順序即還原 z（絕對定位元素無 z-index 時依 DOM 後者在上）。tokenizer 漏抓時回退陣列附加順序，確保不丟元素。
+
+- **「圖片壓到字」可能不是 z 反了，而是文字溢出自己的框**：台股 s1 文件順序是 `sp,sp,sp,sp,pic`（圖本就在最上層、正確），但引擎沒設 `font-family`/`line-height`，瀏覽器替代字型行高比微軟正黑體高→中文文字超出原框、掉進下方圖區、被上層圖蓋。**Why:** 2026-06-06 一度誤判為 z 問題。**How to apply:** 動手修前先看原檔的文件順序與框尺寸再下結論；文字框補來源字型 + CJK fallback（`"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif`）與 `a:lnSpc` 行距（spcPct→無單位、spcPts→pt）抑制溢出。
+
+- **文字顏色「有的有有的沒有」＝只讀了 run 自身 srgbClr**：用 `schemeClr`（主題色）或從 placeholder/master 繼承色的文字會變預設黑。**How to apply:** 讀 `ppt/theme/theme*.xml` 的 `a:clrScheme`（srgbClr 優先，否則 sysClr@lastClr）+ master `p:clrMap`（tx1/bg1→dk1/lt1）建 `schemeClr→色碼` 對應；解析序：run solidFill(srgbClr/schemeClr) → placeholder 型別自 master `txStyles` lvl1 defRPr 取色 → 預設。srgbClr 行為保持不變以免退步。
+
+- **項目符號/編號要自己渲染**：`a:pPr` 的 `buChar`（Wingdings `n`=■、`l`=●、`u`=◆…）、`buAutoNum`（自動編號，框內維護計數）、`buNone`（不顯示）引擎原本完全略過。以段落前置 `<span>` + 懸掛縮排呈現，套 `buClr`/`buSzPct`。未做完整 list-level 多階繼承（非目標）。
+
+- **表格不能寫死字級**：原 `convertTable` 字級寫死 `2cqw` 並忽略 `gridCol` 欄寬/`tr h` 列高/儲存格 rPr。改讀來源後表格才貼近原稿。注意 cqw 是相對「投影片寬」，**投影片不一定是 16:9**：量化策略是正方形（sldSz 6858000×6858000），sz=1200 → 2.222cqw（非 16:9 假設下的 1.25cqw）。
+
+- **「下載簡報 HTML 太大被裁」真因是長寬比寫死 16:9**：`build-presentation-html.ts` 的 `.slide{width:min(100vw,calc(100vh*16/9))}` 遇正方形投影片→整頁比視窗高、被 `#deck overflow:hidden` 裁掉。**Why:** 2026-06-06 量化策略簡報 HTML 底部表格被截。**How to apply:** 取首頁 section 的 `aspect-ratio:cx/cy`，`.slide` 寬度改 `min(100vw,calc(100vh * cx/cy))`，無則退 16/9。詳情頁內嵌的翻頁預覽因在文件流中、不受此限。
+
+- **驗證引擎保真度最直接＝用 ConvertPptService 跑真實 .pptx 比對輸出 HTML**（不必起整個 server/DB）。可寫一次性 spec 以 `fs.readFileSync` 讀 Downloads 原檔、斷言修正點（z 順序用 `indexOf('<img')` vs 文字 indexOf、顏色字串、`■`、`<colgroup>`），跑完即刪不進版控。順手檢查準確率不破百（樣式類改動不應改變 inventory 與文字母數）。

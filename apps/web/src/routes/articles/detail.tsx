@@ -1,6 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Copy, Download, Presentation } from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowLeft, Download, Presentation } from 'lucide-react'
 
 import { useApiQuery } from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -19,15 +18,6 @@ const downloadHtml = (html: string, title: string): void => {
   a.download = `${title || 'article'}.html`
   a.click()
   URL.revokeObjectURL(url)
-}
-
-const copyHtml = async (html: string): Promise<void> => {
-  try {
-    await navigator.clipboard.writeText(html)
-    toast.success('已複製 HTML 到剪貼簿')
-  } catch {
-    toast.error('複製失敗，請改用「下載 HTML」')
-  }
 }
 
 export const ArticleDetailPage = () => {
@@ -98,14 +88,6 @@ export const ArticleDetailPage = () => {
                   >
                     <Presentation />
                     下載簡報 HTML
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void copyHtml(article.html)}
-                  >
-                    <Copy />
-                    複製 HTML
                   </Button>
                 </div>
               </CardHeader>

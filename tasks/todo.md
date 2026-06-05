@@ -6,6 +6,11 @@ _Tasks and cross-module items tracked across sessions._
 
 ## 完成項目
 
+- [x] **保真度修正與檢視精簡（improve-fidelity-and-trim-viewer，2026-06-06）** — 以三份真實 LINE 財經簡報比對原檔修保真度 + 精簡詳情頁；走 openspec + 逐塊 TDD，api 121／web 30 全綠：
+  - 引擎：①依文件順序還原形狀 z 上下層（修美股紅字框被圖蓋）②文字框補字型堆疊＋行距（抑制台股文字溢出壓圖）③項目符號 buChar(Wingdings)/buAutoNum/buNone 還原 ④繼承色＋主題色（theme clrScheme + master clrMap，修藍字變黑）⑤表格讀 gridCol 欄寬/tr h 列高/儲存格字級色粗體。
+  - 前端：詳情頁預覽只留翻頁（移除捲動/模擬寬度）、移除「複製 HTML」；下載簡報 HTML 依投影片實際長寬比（修正方形簡報被裁——#3 真因）。
+  - 非目標：座標對照評分（使用者決定不做）；分頁（確認誤會無 bug）；完整 list-level 多階繼承、sysClr/bgRef/漸層文字色、像素級換行一致。
+
 - [x] **PPT → HTML 轉換 Demo（ppt-to-html-demo，2026-06-05）** — 將模板精簡為此功能專用 demo，皆 typecheck/lint/test（含 e2e）全綠：
   - 精簡模板：移除 RBAC（角色權限）、會員 CRUD、安全(IP/帳號鎖定)、recaptcha/s3/firebase/email/密碼重設；保留 Redis/Throttler/FeatureFlag/AuthLog/SystemLog/SessionIdle 與精簡登入。
   - 轉換引擎（純 JS：jszip + fast-xml-parser，無 LLM/外部服務）：解析 .pptx → 不跑版 HTML（aspect-ratio + 百分比定位 + cqw）、文字/圖片(data URI)/表格還原、未支援元素標記；準確率＝涵蓋率/文字還原率/圖片擷取率 + 加權整體 + 每頁明細。

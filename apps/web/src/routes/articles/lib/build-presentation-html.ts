@@ -28,12 +28,18 @@ if(d)d.addEventListener('click',function(e){if(!e.target.closest('.nav'))show(i+
 show(0);
 `
 
-const STYLE = `
+/** 從首頁 section 的 inline aspect-ratio 取長寬比（cx/cy）；無則退回 16/9 */
+const slideAspectRatio = (firstSlide: string): string => {
+  const m = firstSlide.match(/aspect-ratio:\s*(\d+)\s*\/\s*(\d+)/)
+  return m ? `${m[1]} / ${m[2]}` : '16 / 9'
+}
+
+// width 取「視窗寬」與「視窗高換算的較小者」，依各投影片實際長寬比塞滿視窗、不裁切
+const styleFor = (ratio: string): string => `
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#111;font-family:system-ui,"Noto Sans TC",sans-serif}
 #deck{height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
-/* 16:9 投影片等比塞滿視窗（width 取視窗寬與高換算的較小者） */
-.slide{display:none;width:min(100vw,calc(100vh * 16 / 9));box-shadow:0 0 40px rgba(0,0,0,.5)}
+.slide{display:none;width:min(100vw,calc(100vh * ${ratio}));box-shadow:0 0 40px rgba(0,0,0,.5)}
 .slide.active{display:block}
 .empty{color:#bbb;font-size:1rem}
 .nav{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.6);color:#fff;padding:6px 12px;border-radius:999px;font-size:14px;user-select:none}
@@ -56,6 +62,7 @@ export const buildPresentationHtml = (
   const deck = slides.length
     ? slides.map((s) => `<div class="slide">${s}</div>`).join('')
     : '<p class="empty">沒有可顯示的投影片</p>'
+  const ratio = slideAspectRatio(slides[0] ?? '')
 
   return `<!DOCTYPE html>
 <html lang="zh-Hant">
@@ -63,7 +70,7 @@ export const buildPresentationHtml = (
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${escapeHtml(title)}</title>
-<style>${STYLE}</style>
+<style>${styleFor(ratio)}</style>
 </head>
 <body>
 <div id="deck">${deck}</div>

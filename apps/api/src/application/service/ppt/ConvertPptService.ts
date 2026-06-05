@@ -87,6 +87,12 @@ type PhResolver = (type?: string, idx?: string) => XmlNode | undefined;
 /** 依 placeholder 型別取得繼承的預設字級（百分點，如 1400=14pt）；無則 undefined */
 type DefaultSizeResolver = (phType?: string) => number | undefined;
 
+/** schemeClr 值（如 tx1/accent1）→ 實際色碼（不含 #）；無則 undefined */
+type SchemeResolver = (val: string) => string | undefined;
+
+/** 依 placeholder 型別取得繼承的預設文字色（不含 #）；無則 undefined */
+type DefaultColorResolver = (phType?: string) => string | undefined;
+
 // placeholder type 別名群組（slide 與 layout 的 type 未必字面相同）
 const TITLE_TYPES = new Set(['title', 'ctrTitle']);
 const BODY_TYPES = new Set(['body', 'subTitle']);
@@ -332,6 +338,105 @@ export class ConvertPptService implements ConvertPptUseCase {
     };
   }
 
+  /** 讀 theme `<a:clrScheme>` 各 slot → 色碼（srgbClr 優先，否則 sysClr@lastClr） */
+  private async readClrScheme(
+    zip: JSZip,
+    themePath: string | undefined,
+  ): Promise<Record<string, string>> {
+    if (!themePath) return {};
+    const doc = await this.readXml(zip, themePath);
+    const scheme = (
+      (doc?.['a:theme'] as XmlNode | undefined)?.['a:themeElements'] as
+        | XmlNode
+        | undefined
+    )?.['a:clrScheme'] as XmlNode | undefined;
+    if (!scheme) return {};
+    const slots = [
+      'dk1',
+      'lt1',
+      'dk2',
+      'lt2',
+      'accent1',
+      'accent2',
+      'accent3',
+      'accent4',
+      'accent5',
+      'accent6',
+      'hlink',
+      'folHlink',
+    ];
+    const out: Record<string, string> = {};
+    for (const slot of slots) {
+      const node = scheme[`a:${slot}`] as XmlNode | undefined;
+      if (!node) continue;
+      const srgb = (node['a:srgbClr'] as XmlNode | undefined)?.['@_val'];
+      const sys = (node['a:sysClr'] as XmlNode | undefined)?.['@_lastClr'];
+      const c = srgb ?? sys;
+      if (c) out[slot] = String(c);
+    }
+    return out;
+  }
+
+  /** 讀 master `<p:clrMap>`：內容用色名（tx1/bg1…）→ 主題 slot（dk1/lt1…） */
+  private async readClrMap(
+    zip: JSZip,
+    masterPath: string | undefined,
+  ): Promise<Record<string, string>> {
+    if (!masterPath) return {};
+    const doc = await this.readXml(zip, masterPath);
+    const clrMap = (doc?.['p:sldMaster'] as XmlNode | undefined)?.[
+      'p:clrMap'
+    ] as XmlNode | undefined;
+    if (!clrMap) return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(clrMap)) {
+      if (k.startsWith('@_')) out[k.slice(2)] = String(v);
+    }
+    return out;
+  }
+
+  /** schemeClr 值 → 色碼：tx1/bg1… 經 clrMap 轉 slot；dk1/lt1… 直接查色盤 */
+  private resolveSchemeColor(
+    val: string,
+    clrMap: Record<string, string>,
+    clrScheme: Record<string, string>,
+  ): string | undefined {
+    const slot = clrMap[val] ?? val;
+    return clrScheme[slot] ?? clrScheme[val];
+  }
+
+  /** 讀 master `<p:txStyles>` 各樣式 lvl1 的 `defRPr` 顏色（解析為色碼） */
+  private async readTxStyleColors(
+    zip: JSZip,
+    masterPath: string | undefined,
+    resolveScheme: SchemeResolver,
+  ): Promise<{ title?: string; body?: string; other?: string }> {
+    if (!masterPath) return {};
+    const doc = await this.readXml(zip, masterPath);
+    const txStyles = (doc?.['p:sldMaster'] as XmlNode | undefined)?.[
+      'p:txStyles'
+    ] as XmlNode | undefined;
+    if (!txStyles) return {};
+    const colorOf = (node: XmlNode | undefined): string | undefined => {
+      const defRPr = (node?.['a:lvl1pPr'] as XmlNode | undefined)?.[
+        'a:defRPr'
+      ] as XmlNode | undefined;
+      const solidFill = defRPr?.['a:solidFill'] as XmlNode | undefined;
+      if (!solidFill) return undefined;
+      const srgb = (solidFill['a:srgbClr'] as XmlNode | undefined)?.['@_val'];
+      if (srgb) return String(srgb);
+      const scheme = (solidFill['a:schemeClr'] as XmlNode | undefined)?.[
+        '@_val'
+      ];
+      return scheme ? resolveScheme(String(scheme)) : undefined;
+    };
+    return {
+      title: colorOf(txStyles['p:titleStyle'] as XmlNode | undefined),
+      body: colorOf(txStyles['p:bodyStyle'] as XmlNode | undefined),
+      other: colorOf(txStyles['p:otherStyle'] as XmlNode | undefined),
+    };
+  }
+
   /** 取形狀的 placeholder type/idx（無則 undefined） */
   private phOf(sp: XmlNode): { type?: string; idx?: string } | undefined {
     const ph = (
@@ -439,6 +544,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         cy,
         () => undefined,
         () => undefined,
+        () => undefined,
+        () => undefined,
       );
       if (element?.text) parts.push(html);
     }
@@ -487,6 +594,27 @@ export class ConvertPptService implements ConvertPptUseCase {
       return txStyles.other;
     };
 
+    // 主題色盤：master <p:clrMap> + theme <a:clrScheme>，解析 schemeClr → 實際色碼
+    const themePath = masterPath
+      ? await this.resolveRelByType(zip, masterPath, 'theme')
+      : undefined;
+    const clrScheme = await this.readClrScheme(zip, themePath);
+    const clrMap = await this.readClrMap(zip, masterPath);
+    const resolveScheme: SchemeResolver = (val) =>
+      this.resolveSchemeColor(val, clrMap, clrScheme);
+
+    // 繼承色：run 無自身色時，依 placeholder 型別自 master txStyles 取色
+    const txColors = await this.readTxStyleColors(
+      zip,
+      masterPath,
+      resolveScheme,
+    );
+    const resolveDefaultColor: DefaultColorResolver = (phType) => {
+      if (phType && TITLE_TYPES.has(phType)) return txColors.title;
+      if (phType && BODY_TYPES.has(phType)) return txColors.body;
+      return txColors.other;
+    };
+
     const sld = doc?.['p:sld'] as XmlNode | undefined;
     const cSld = sld?.['p:cSld'] as XmlNode | undefined;
     const spTree = cSld?.['p:spTree'] as XmlNode | undefined;
@@ -505,14 +633,20 @@ export class ConvertPptService implements ConvertPptUseCase {
     );
 
     if (spTree) {
+      // 取 spTree 內層原始 XML，供 walkShapes 還原跨型別的文件順序（=z 上下層）
+      const spTreeInner =
+        rawXml.match(/<p:spTree[^>]*>([\s\S]*)<\/p:spTree>/)?.[1] ?? '';
       await this.walkShapes(
         zip,
         spTree,
+        spTreeInner,
         rels,
         cx,
         cy,
         resolvePh,
         resolveDefaultSize,
+        resolveScheme,
+        resolveDefaultColor,
         elements,
         htmlParts,
       );
@@ -549,32 +683,47 @@ export class ConvertPptService implements ConvertPptUseCase {
     return { html, inventory: { index, elements }, accuracy };
   }
 
-  /** 走訪 spTree 的形狀（群組則遞迴） */
+  /**
+   * 走訪容器（spTree／grpSp）的形狀，依「文件順序」渲染以還原 z 上下層。
+   * 後出現的形狀在 DOM 較後 → 疊在先出現者之上，與 PowerPoint 一致。
+   * @param innerXml 容器內層原始 XML，用於重建跨型別兄弟順序
+   */
   private async walkShapes(
     zip: JSZip,
     node: XmlNode,
+    innerXml: string,
     rels: Map<string, string>,
     cx: number,
     cy: number,
     resolvePh: PhResolver,
     resolveDefaultSize: DefaultSizeResolver,
+    resolveScheme: SchemeResolver,
+    resolveDefaultColor: DefaultColorResolver,
     elements: InventoryElement[],
     htmlParts: string[],
   ): Promise<void> {
-    for (const sp of asArray(node['p:sp'] as XmlNode[])) {
+    const sps = asArray(node['p:sp'] as XmlNode[]);
+    const pics = asArray(node['p:pic'] as XmlNode[]);
+    const gfs = asArray(node['p:graphicFrame'] as XmlNode[]);
+    const grps = asArray(node['p:grpSp'] as XmlNode[]);
+    const idx = { sp: 0, pic: 0, graphicFrame: 0, grpSp: 0 };
+
+    const renderSp = (sp: XmlNode): void => {
       const { html, element } = this.convertTextShape(
         sp,
         cx,
         cy,
         resolvePh,
         resolveDefaultSize,
+        resolveScheme,
+        resolveDefaultColor,
       );
       if (element) {
         elements.push(element);
         htmlParts.push(html);
       }
-    }
-    for (const pic of asArray(node['p:pic'] as XmlNode[])) {
+    };
+    const renderPic = async (pic: XmlNode): Promise<void> => {
       const { html, element } = await this.convertPicture(
         zip,
         pic,
@@ -584,26 +733,88 @@ export class ConvertPptService implements ConvertPptUseCase {
       );
       elements.push(element);
       htmlParts.push(html);
-    }
-    for (const gf of asArray(node['p:graphicFrame'] as XmlNode[])) {
-      const { html, element } = this.convertGraphicFrame(gf, cx, cy);
+    };
+    const renderGf = (gf: XmlNode): void => {
+      const { html, element } = this.convertGraphicFrame(
+        gf,
+        cx,
+        cy,
+        resolveScheme,
+      );
       elements.push(element);
       htmlParts.push(html);
-    }
-    for (const grp of asArray(node['p:grpSp'] as XmlNode[])) {
-      // 群組：best-effort 遞迴（忽略群組變換，子元素以自身座標定位）
+    };
+    // 群組：best-effort 遞迴（忽略群組變換，子元素以自身座標定位），沿用其文件順序
+    const renderGrp = async (grp: XmlNode, grpInner: string): Promise<void> => {
       await this.walkShapes(
         zip,
         grp,
+        grpInner,
         rels,
         cx,
         cy,
         resolvePh,
         resolveDefaultSize,
+        resolveScheme,
+        resolveDefaultColor,
         elements,
         htmlParts,
       );
+    };
+
+    for (const child of this.orderedChildren(innerXml)) {
+      if (child.kind === 'sp' && idx.sp < sps.length) renderSp(sps[idx.sp++]);
+      else if (child.kind === 'pic' && idx.pic < pics.length)
+        await renderPic(pics[idx.pic++]);
+      else if (child.kind === 'graphicFrame' && idx.graphicFrame < gfs.length)
+        renderGf(gfs[idx.graphicFrame++]);
+      else if (child.kind === 'grpSp' && idx.grpSp < grps.length)
+        await renderGrp(grps[idx.grpSp++], child.inner ?? '');
+      // cxnSp 無轉換器，略過（仍佔文件順序）
     }
+
+    // 後備：tokenizer 漏掉的元素依陣列剩餘順序補上，確保不丟元素
+    for (; idx.sp < sps.length; idx.sp++) renderSp(sps[idx.sp]);
+    for (; idx.pic < pics.length; idx.pic++) await renderPic(pics[idx.pic]);
+    for (; idx.graphicFrame < gfs.length; idx.graphicFrame++)
+      renderGf(gfs[idx.graphicFrame]);
+    for (; idx.grpSp < grps.length; idx.grpSp++)
+      await renderGrp(grps[idx.grpSp], '');
+  }
+
+  /**
+   * 解析容器直屬子形狀的文件順序；grpSp 另附其內層 XML 供遞迴沿用順序。
+   * 以深度計數排除巢狀群組內的標籤，只取直屬層。
+   */
+  private orderedChildren(innerXml: string): Array<{
+    kind: 'sp' | 'pic' | 'graphicFrame' | 'grpSp' | 'cxnSp';
+    inner?: string;
+  }> {
+    const re = /<p:(sp|pic|graphicFrame|grpSp|cxnSp)(?:\s[^>]*)?>|<\/p:grpSp>/g;
+    const out: Array<{
+      kind: 'sp' | 'pic' | 'graphicFrame' | 'grpSp' | 'cxnSp';
+      inner?: string;
+    }> = [];
+    let depth = 0;
+    let grpStart = -1;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(innerXml))) {
+      if (m[0] === '</p:grpSp>') {
+        depth--;
+        if (depth === 0 && grpStart >= 0) {
+          out.push({ kind: 'grpSp', inner: innerXml.slice(grpStart, m.index) });
+          grpStart = -1;
+        }
+        continue;
+      }
+      const kind = m[1] as 'sp' | 'pic' | 'graphicFrame' | 'grpSp' | 'cxnSp';
+      if (depth === 0) {
+        if (kind === 'grpSp') grpStart = re.lastIndex;
+        else out.push({ kind });
+      }
+      if (kind === 'grpSp') depth++;
+    }
+    return out;
   }
 
   private convertTextShape(
@@ -612,6 +823,8 @@ export class ConvertPptService implements ConvertPptUseCase {
     cy: number,
     resolvePh: PhResolver,
     resolveDefaultSize: DefaultSizeResolver,
+    resolveScheme: SchemeResolver,
+    resolveDefaultColor: DefaultColorResolver,
   ): { html: string; element: InventoryElement | null } {
     const spPr = sp['p:spPr'] as XmlNode | undefined;
     const txBody = sp['p:txBody'] as XmlNode | undefined;
@@ -624,27 +837,43 @@ export class ConvertPptService implements ConvertPptUseCase {
     const pos = this.positionStyle(xfrm, cx, cy);
     // 無自身 sz 的文字以此為基準字級（依 ph 型別繼承 master txStyles，否則退預設）
     const baseSize = resolveDefaultSize(ph?.type) ?? DEFAULT_FONT_SIZE;
+    // 無自身色的文字以此為預設色（依 ph 型別繼承 master txStyles）
+    const defaultColor = resolveDefaultColor(ph?.type);
     const fill = solidFillColor(spPr);
     const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);
 
+    // 以首個 run 的字型為代表，套於整個文字框（補 CJK fallback 抑制替代字型行高差異）
+    const firstRun = asArray(paragraphs[0]?.['a:r'] as XmlNode[])[0];
+    const fontFamilyStyle = this.fontFamily(
+      firstRun?.['a:rPr'] as XmlNode | undefined,
+    );
+
     const plainParts: string[] = [];
+    let autoNum = 0; // buAutoNum 序號計數（限本文字框）
     const htmlParagraphs = paragraphs.map((p) => {
-      const algn = (p['a:pPr'] as XmlNode | undefined)?.['@_algn'];
+      const pPr = p['a:pPr'] as XmlNode | undefined;
+      const algn = pPr?.['@_algn'];
       const alignStyle = algn
         ? `text-align:${ALGN_MAP[String(algn)] ?? 'left'};`
+        : '';
+      const lineHeightStyle = this.lineHeight(pPr);
+      const bullet = this.bulletMarker(pPr, () => ++autoNum);
+      // 有項目符號時懸掛縮排，讓符號落在文字左側
+      const indentStyle = bullet
+        ? 'padding-left:1.5em;text-indent:-1.5em;'
         : '';
       const runs = asArray(p['a:r'] as XmlNode[]);
       const spans = runs.map((r) => {
         const t = textOf(r['a:t']);
         plainParts.push(t);
-        return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx)}">${escapeHtml(t)}</span>`;
+        return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx, resolveScheme, defaultColor)}">${escapeHtml(t)}</span>`;
       });
-      return `<p style="margin:0;${alignStyle}">${spans.join('')}</p>`;
+      return `<p style="margin:0;${alignStyle}${lineHeightStyle}${indentStyle}">${bullet}${spans.join('')}</p>`;
     });
 
     const text = plainParts.join('').trim() ? plainParts.join('\n') : '';
-    const html = `<div style="position:absolute;${pos}${fillStyle}font-size:${this.fontCqw(baseSize, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
+    const html = `<div style="position:absolute;${pos}${fillStyle}${fontFamilyStyle}font-size:${this.fontCqw(baseSize, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
 
     return {
       html,
@@ -696,6 +925,7 @@ export class ConvertPptService implements ConvertPptUseCase {
     gf: XmlNode,
     cx: number,
     cy: number,
+    resolveScheme: SchemeResolver,
   ): { html: string; element: InventoryElement } {
     const pos = this.positionStyle(gf['p:xfrm'] as XmlNode | undefined, cx, cy);
     const graphic = gf['a:graphic'] as XmlNode | undefined;
@@ -704,7 +934,11 @@ export class ConvertPptService implements ConvertPptUseCase {
     const tbl = graphicData?.['a:tbl'] as XmlNode | undefined;
 
     if (uri.includes('table') && tbl) {
-      const { html: tableHtml, cells } = this.convertTable(tbl);
+      const { html: tableHtml, cells } = this.convertTable(
+        tbl,
+        cx,
+        resolveScheme,
+      );
       const html = `<div style="position:absolute;${pos}">${tableHtml}</div>`;
       return {
         html,
@@ -724,10 +958,35 @@ export class ConvertPptService implements ConvertPptUseCase {
     };
   }
 
-  private convertTable(tbl: XmlNode): { html: string; cells: string[][] } {
+  private convertTable(
+    tbl: XmlNode,
+    cx: number,
+    resolveScheme: SchemeResolver,
+  ): { html: string; cells: string[][] } {
+    // 欄寬：依 a:gridCol/@w 比例產出 colgroup（避免欄寬失真）
+    const gridCols = asArray(
+      (tbl['a:tblGrid'] as XmlNode | undefined)?.['a:gridCol'] as XmlNode[],
+    );
+    const colWidths = gridCols.map((c) => Number(c['@_w']) || 0);
+    const colTotal = colWidths.reduce((s, w) => s + w, 0);
+    const colgroup =
+      colTotal > 0
+        ? `<colgroup>${colWidths
+            .map((w) => `<col style="width:${round((w / colTotal) * 100)}%;"/>`)
+            .join('')}</colgroup>`
+        : '';
+
+    // 列高：依 a:tr/@h 比例分配（h=0 視為自動，不計入分母）
     const rows = asArray(tbl['a:tr'] as XmlNode[]);
+    const rowHeights = rows.map((tr) => Number(tr['@_h']) || 0);
+    const rowTotal = rowHeights.reduce((s, h) => s + h, 0);
+
     const cells: string[][] = [];
-    const rowHtml = rows.map((tr) => {
+    const rowHtml = rows.map((tr, ri) => {
+      const heightStyle =
+        rowTotal > 0 && rowHeights[ri] > 0
+          ? `height:${round((rowHeights[ri] / rowTotal) * 100)}%;`
+          : '';
       const tcs = asArray(tr['a:tc'] as XmlNode[]);
       const rowCells: string[] = [];
       const cellHtml = tcs.map((tc) => {
@@ -736,13 +995,35 @@ export class ConvertPptService implements ConvertPptUseCase {
         rowCells.push(text);
         const fill = solidFillColor(tc['a:tcPr'] as XmlNode | undefined);
         const fillStyle = fill ? `background:#${fill};` : '';
-        return `<td style="border:1px solid #d1d5db;padding:0.4cqw 0.8cqw;${fillStyle}">${escapeHtml(text)}</td>`;
+        return `<td style="border:1px solid #d1d5db;padding:0.4cqw 0.8cqw;${fillStyle}${this.cellTextStyle(txBody, cx, resolveScheme)}">${escapeHtml(text)}</td>`;
       });
       cells.push(rowCells);
-      return `<tr>${cellHtml.join('')}</tr>`;
+      return `<tr style="${heightStyle}">${cellHtml.join('')}</tr>`;
     });
-    const html = `<table style="width:100%;height:100%;border-collapse:collapse;font-size:2cqw;">${rowHtml.join('')}</table>`;
+    // font-size 2cqw 僅作為儲存格未指定字級時的退路
+    const html = `<table style="width:100%;height:100%;border-collapse:collapse;font-size:2cqw;table-layout:fixed;">${colgroup}${rowHtml.join('')}</table>`;
     return { html, cells };
+  }
+
+  /** 儲存格文字樣式：取首個 run 的字級/顏色/粗體/對齊（cqw 字級避免寫死過大溢出） */
+  private cellTextStyle(
+    txBody: XmlNode | undefined,
+    cx: number,
+    resolveScheme: SchemeResolver,
+  ): string {
+    const firstPara = asArray(txBody?.['a:p'] as XmlNode[])[0];
+    const firstRun = asArray(firstPara?.['a:r'] as XmlNode[])[0];
+    const rPr = firstRun?.['a:rPr'] as XmlNode | undefined;
+    const parts: string[] = [];
+    const sz = Number(rPr?.['@_sz']);
+    if (sz) parts.push(`font-size:${this.fontCqw(sz, cx)}cqw;`);
+    if (rPr?.['@_b'] === '1' || rPr?.['@_b'] === 1)
+      parts.push('font-weight:bold;');
+    const color = this.runColor(rPr, resolveScheme);
+    if (color) parts.push(`color:#${color};`);
+    const algn = (firstPara?.['a:pPr'] as XmlNode | undefined)?.['@_algn'];
+    if (algn) parts.push(`text-align:${ALGN_MAP[String(algn)] ?? 'left'};`);
+    return parts.join('');
   }
 
   private extractTxBodyText(txBody: XmlNode | undefined): string {
@@ -772,7 +1053,12 @@ export class ConvertPptService implements ConvertPptUseCase {
     return `left:${round((x / cx) * 100)}%;top:${round((y / cy) * 100)}%;width:${round((w / cx) * 100)}%;height:${round((h / cy) * 100)}%;`;
   }
 
-  private runStyle(rPr: XmlNode | undefined, cx: number): string {
+  private runStyle(
+    rPr: XmlNode | undefined,
+    cx: number,
+    resolveScheme: SchemeResolver,
+    defaultColor?: string,
+  ): string {
     const parts: string[] = [];
     if (rPr?.['@_b'] === '1' || rPr?.['@_b'] === 1)
       parts.push('font-weight:bold;');
@@ -782,10 +1068,107 @@ export class ConvertPptService implements ConvertPptUseCase {
       parts.push('text-decoration:underline;');
     const sz = Number(rPr?.['@_sz']);
     if (sz) parts.push(`font-size:${this.fontCqw(sz, cx)}cqw;`);
-    const solidFill = rPr?.['a:solidFill'] as XmlNode | undefined;
-    const srgb = solidFill?.['a:srgbClr'] as XmlNode | undefined;
-    if (srgb?.['@_val']) parts.push(`color:#${String(srgb['@_val'])};`);
+    // 色：run srgbClr → schemeClr（主題色）→ placeholder 繼承色
+    const color = this.runColor(rPr, resolveScheme) ?? defaultColor;
+    if (color) parts.push(`color:#${color};`);
     return parts.join('');
+  }
+
+  /** 解析 run 自身顏色：srgbClr 直接用、schemeClr 經主題色盤解析；無則 undefined */
+  private runColor(
+    rPr: XmlNode | undefined,
+    resolveScheme: SchemeResolver,
+  ): string | undefined {
+    const solidFill = rPr?.['a:solidFill'] as XmlNode | undefined;
+    if (!solidFill) return undefined;
+    const srgb = (solidFill['a:srgbClr'] as XmlNode | undefined)?.['@_val'];
+    if (srgb) return String(srgb);
+    const scheme = (solidFill['a:schemeClr'] as XmlNode | undefined)?.['@_val'];
+    return scheme ? resolveScheme(String(scheme)) : undefined;
+  }
+
+  // CJK 字型 fallback：替代字型行高貼近微軟正黑體，降低中文文字溢出原框
+  private static readonly CJK_FALLBACK =
+    '"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif';
+
+  /** 文字框字型堆疊：來源字型（a:latin/a:ea）置前，串接 CJK fallback */
+  private fontFamily(rPr: XmlNode | undefined): string {
+    const latin = (rPr?.['a:latin'] as XmlNode | undefined)?.['@_typeface'];
+    const ea = (rPr?.['a:ea'] as XmlNode | undefined)?.['@_typeface'];
+    const face = latin ?? ea;
+    return face
+      ? `font-family:"${String(face)}",${ConvertPptService.CJK_FALLBACK};`
+      : `font-family:${ConvertPptService.CJK_FALLBACK};`;
+  }
+
+  /** 段落行距 <a:lnSpc>：spcPct → 無單位 line-height；spcPts → pt */
+  private lineHeight(pPr: XmlNode | undefined): string {
+    const lnSpc = pPr?.['a:lnSpc'] as XmlNode | undefined;
+    if (!lnSpc) return '';
+    const pct = (lnSpc['a:spcPct'] as XmlNode | undefined)?.['@_val'];
+    if (pct) return `line-height:${round(Number(pct) / 100000, 3)};`;
+    const pts = (lnSpc['a:spcPts'] as XmlNode | undefined)?.['@_val'];
+    if (pts) return `line-height:${Number(pts) / 100}pt;`;
+    return '';
+  }
+
+  // Wingdings 常用項目符號碼 → Unicode
+  private static readonly WINGDINGS_BULLET: Record<string, string> = {
+    n: '■',
+    l: '●',
+    u: '◆',
+    p: '❖',
+    v: '❖',
+    w: '◆',
+  };
+
+  /**
+   * 解析段落 `<a:pPr>` 的項目符號，回傳前置 marker 的 HTML（無則空字串）。
+   * 支援 buNone（不顯示）、buChar（含 Wingdings 對應）、buAutoNum（自動編號）。
+   * @param nextNum buAutoNum 取下一個序號（由呼叫端維護文字框內計數）
+   */
+  private bulletMarker(
+    pPr: XmlNode | undefined,
+    nextNum: () => number,
+  ): string {
+    if (!pPr || pPr['a:buNone'] !== undefined) return '';
+    const buChar = pPr['a:buChar'] as XmlNode | undefined;
+    const buAuto = pPr['a:buAutoNum'] as XmlNode | undefined;
+    if (!buChar && !buAuto) return '';
+
+    const buClr = srgbVal(pPr['a:buClr'] as XmlNode | undefined);
+    const colorStyle = buClr ? `color:#${buClr};` : '';
+    const szPct = (pPr['a:buSzPct'] as XmlNode | undefined)?.['@_val'];
+    const sizeStyle = szPct
+      ? `font-size:${round(Number(szPct) / 100000, 2)}em;`
+      : '';
+    const style = `${colorStyle}${sizeStyle}margin-right:0.4em;`;
+
+    let marker: string;
+    if (buChar) {
+      const ch = String(buChar['@_char'] ?? '');
+      const buFont = (pPr['a:buFont'] as XmlNode | undefined)?.['@_typeface'];
+      marker = this.bulletGlyph(ch, buFont ? String(buFont) : undefined);
+    } else {
+      const type = String(buAuto?.['@_type'] ?? 'arabicPeriod');
+      marker = this.formatAutoNum(nextNum(), type);
+    }
+    return `<span style="${style}">${escapeHtml(marker)}</span>`;
+  }
+
+  /** buChar 字元 → 顯示字形（Wingdings 走對應表，其餘原樣輸出） */
+  private bulletGlyph(ch: string, font?: string): string {
+    if (font && /wingdings/i.test(font)) {
+      return ConvertPptService.WINGDINGS_BULLET[ch] ?? '■';
+    }
+    return ch || '•';
+  }
+
+  /** buAutoNum 序號格式化（常見阿拉伯數字格式，其餘退 `N.`） */
+  private formatAutoNum(n: number, type: string): string {
+    if (type.startsWith('arabicParenBoth')) return `(${n})`;
+    if (type.startsWith('arabicParenR')) return `${n})`;
+    return `${n}.`;
   }
 
   /** OOXML 字級（百分點）→ cqw（容器寬度單位，相對投影片寬） */
