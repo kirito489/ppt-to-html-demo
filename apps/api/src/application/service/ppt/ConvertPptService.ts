@@ -552,6 +552,41 @@ export class ConvertPptService implements ConvertPptUseCase {
     return parts;
   }
 
+  /**
+   * 渲染 slideLayout／slideMaster 上「非 placeholder」的圖片（如每頁共用的 logo、頁首色條）。
+   * 以該檔自己的關係檔解析圖片，回傳由呼叫端墊在 slide 內容之下的 HTML。不計入準確率。
+   */
+  private async decorGraphicsHtml(
+    zip: JSZip,
+    xmlPath: string | undefined,
+    cx: number,
+    cy: number,
+  ): Promise<string[]> {
+    if (!xmlPath) return [];
+    const doc = await this.readXml(zip, xmlPath);
+    const root = (doc?.['p:sldLayout'] ?? doc?.['p:sldMaster']) as
+      | XmlNode
+      | undefined;
+    const spTree = (root?.['p:cSld'] as XmlNode | undefined)?.['p:spTree'] as
+      | XmlNode
+      | undefined;
+    if (!spTree) return [];
+    const rels = await this.readSlideRels(zip, xmlPath);
+    const parts: string[] = [];
+    for (const pic of asArray(spTree['p:pic'] as XmlNode[])) {
+      // 跳過圖片 placeholder（會由 slide 填入），只取裝飾／品牌圖片
+      const ph = (
+        (pic['p:nvPicPr'] as XmlNode | undefined)?.['p:nvPr'] as
+          | XmlNode
+          | undefined
+      )?.['p:ph'];
+      if (ph) continue;
+      const { html } = await this.convertPicture(zip, pic, rels, cx, cy);
+      parts.push(html);
+    }
+    return parts;
+  }
+
   private async convertSlide(
     zip: JSZip,
     slidePath: string,
@@ -627,7 +662,9 @@ export class ConvertPptService implements ConvertPptUseCase {
     const elements: InventoryElement[] = [];
     const htmlParts: string[] = [];
 
-    // layout 上的非 ph 裝飾文字（頁尾/聲明）先墊底，再疊 slide 內容
+    // 版面裝飾墊底（z 序：master 圖 → layout 圖 → layout 文字 → slide 內容），補回每頁共用的 logo/聲明
+    htmlParts.push(...(await this.decorGraphicsHtml(zip, masterPath, cx, cy)));
+    htmlParts.push(...(await this.decorGraphicsHtml(zip, layoutPath, cx, cy)));
     htmlParts.push(
       ...(await this.layoutDecorTextHtml(zip, layoutPath, cx, cy)),
     );
