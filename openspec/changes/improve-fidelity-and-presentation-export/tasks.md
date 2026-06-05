@@ -5,18 +5,18 @@
 
 ## 2. 引擎：圖片填滿形狀框（TDD）
 
-- [ ] 2.1 先寫 spec：含 `<p:pic>` 的合成 pptx → 輸出 `<img>` 樣式含 `object-fit:fill`
-- [ ] 2.2 `convertPicture` 將 `object-fit:contain` 改為 `fill`；2.x spec 綠
+- [x] 2.1 先寫 spec：含 `<p:pic>` 的合成 pptx → 輸出 `<img>` 樣式含 `object-fit:fill`
+- [x] 2.2 `convertPicture` 將 `object-fit:contain` 改為 `fill`；2.x spec 綠
 
 ## 3. 引擎：Layout/Master 非 placeholder 文字渲染（TDD）
 
-- [ ] 3.1 先寫 spec：slide 無該文字、slideLayout 有一個非 ph 文字框（如「僅供參考」）→ 輸出含該文字且位於 slide 元素之前
-- [ ] 3.2 `convertSlide` 走訪 layout（必要時 master）spTree 的 `<p:sp>`，挑「有 `txBody` 且無 `<p:ph>`」者轉成定位文字，prepend 在 slide 內容前；3.x spec 綠
+- [x] 3.1 先寫 spec：slide 無該文字、slideLayout 有一個非 ph 文字框（如「僅供參考」）→ 輸出含該文字且位於 slide 元素之前
+- [x] 3.2 `convertSlide` 走訪 layout（必要時 master）spTree 的 `<p:sp>`，挑「有 `txBody` 且無 `<p:ph>`」者轉成定位文字，prepend 在 slide 內容前；3.x spec 綠
 
 ## 4. 引擎：無字級時字級繼承（TDD）
 
-- [ ] 4.1 先寫 spec：master `bodyStyle` lvl1 設字級、body run 無 `sz` → 套繼承字級而非 18pt；無對應來源時退 18pt
-- [ ] 4.2 解析 master `<p:txStyles>`（title/body/other × lvl）建字級表；run 無 `@_sz` 時依 ph 型別 + 段落 `lvl` 查表（layout/placeholder `lstStyle` 優先），皆無才退 18pt；4.x spec 綠
+- [x] 4.1 先寫 spec：master `bodyStyle` lvl1 設字級、body run 無 `sz` → 套繼承字級而非 18pt；無對應來源時退 18pt
+- [x] 4.2 解析 master `<p:txStyles>`（title/body/other）建字級表；無 `@_sz` 文字依 ph 型別繼承（lvl1），皆無才退 18pt；4.x spec 綠
 
 ## 5. 前端：簡報匯出
 

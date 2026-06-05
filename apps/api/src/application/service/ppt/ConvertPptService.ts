@@ -84,6 +84,9 @@ interface PlaceholderEntry {
 /** 依 placeholder 的 type/idx 取得繼承座標（layout→master） */
 type PhResolver = (type?: string, idx?: string) => XmlNode | undefined;
 
+/** 依 placeholder 型別取得繼承的預設字級（百分點，如 1400=14pt）；無則 undefined */
+type DefaultSizeResolver = (phType?: string) => number | undefined;
+
 // placeholder type 別名群組（slide 與 layout 的 type 未必字面相同）
 const TITLE_TYPES = new Set(['title', 'ctrTitle']);
 const BODY_TYPES = new Set(['body', 'subTitle']);
@@ -306,6 +309,29 @@ export class ConvertPptService implements ConvertPptUseCase {
     return list;
   }
 
+  /** 讀取 master `<p:txStyles>` 各樣式 lvl1 的 `defRPr@sz`（title / body / other） */
+  private async readTxStyles(
+    zip: JSZip,
+    masterPath: string | undefined,
+  ): Promise<{ title?: number; body?: number; other?: number }> {
+    if (!masterPath) return {};
+    const doc = await this.readXml(zip, masterPath);
+    const txStyles = (doc?.['p:sldMaster'] as XmlNode | undefined)?.[
+      'p:txStyles'
+    ] as XmlNode | undefined;
+    if (!txStyles) return {};
+    const szOf = (node: XmlNode | undefined): number | undefined => {
+      const lvl1 = node?.['a:lvl1pPr'] as XmlNode | undefined;
+      const sz = Number((lvl1?.['a:defRPr'] as XmlNode | undefined)?.['@_sz']);
+      return sz || undefined;
+    };
+    return {
+      title: szOf(txStyles['p:titleStyle'] as XmlNode | undefined),
+      body: szOf(txStyles['p:bodyStyle'] as XmlNode | undefined),
+      other: szOf(txStyles['p:otherStyle'] as XmlNode | undefined),
+    };
+  }
+
   /** 取形狀的 placeholder type/idx（無則 undefined） */
   private phOf(sp: XmlNode): { type?: string; idx?: string } | undefined {
     const ph = (
@@ -384,6 +410,41 @@ export class ConvertPptService implements ConvertPptUseCase {
     return undefined;
   }
 
+  /**
+   * 渲染 slideLayout 上「非 placeholder」的文字框（頁尾、免責聲明等裝飾文字）。
+   * 這類文字只存在於版面上，slide 自身 spTree 抓不到；回傳的 HTML 由呼叫端墊在
+   * slide 內容之下（z-order 在底），避免蓋住正文。不計入準確率。
+   */
+  private async layoutDecorTextHtml(
+    zip: JSZip,
+    layoutPath: string | undefined,
+    cx: number,
+    cy: number,
+  ): Promise<string[]> {
+    if (!layoutPath) return [];
+    const doc = await this.readXml(zip, layoutPath);
+    const spTree = (
+      (doc?.['p:sldLayout'] as XmlNode | undefined)?.['p:cSld'] as
+        | XmlNode
+        | undefined
+    )?.['p:spTree'] as XmlNode | undefined;
+    if (!spTree) return [];
+    const parts: string[] = [];
+    for (const sp of asArray(spTree['p:sp'] as XmlNode[])) {
+      // 只取非 placeholder 且有實際文字的文字框
+      if (this.phOf(sp) || !sp['p:txBody']) continue;
+      const { html, element } = this.convertTextShape(
+        sp,
+        cx,
+        cy,
+        () => undefined,
+        () => undefined,
+      );
+      if (element?.text) parts.push(html);
+    }
+    return parts;
+  }
+
   private async convertSlide(
     zip: JSZip,
     slidePath: string,
@@ -418,6 +479,14 @@ export class ConvertPptService implements ConvertPptUseCase {
       this.matchPlaceholder(type, idx, layoutPhs) ??
       this.matchPlaceholder(type, idx, masterPhs);
 
+    // master txStyles：供無自身 sz 的文字依 placeholder 型別繼承字級
+    const txStyles = await this.readTxStyles(zip, masterPath);
+    const resolveDefaultSize: DefaultSizeResolver = (phType) => {
+      if (phType && TITLE_TYPES.has(phType)) return txStyles.title;
+      if (phType && BODY_TYPES.has(phType)) return txStyles.body;
+      return txStyles.other;
+    };
+
     const sld = doc?.['p:sld'] as XmlNode | undefined;
     const cSld = sld?.['p:cSld'] as XmlNode | undefined;
     const spTree = cSld?.['p:spTree'] as XmlNode | undefined;
@@ -430,6 +499,11 @@ export class ConvertPptService implements ConvertPptUseCase {
     const elements: InventoryElement[] = [];
     const htmlParts: string[] = [];
 
+    // layout 上的非 ph 裝飾文字（頁尾/聲明）先墊底，再疊 slide 內容
+    htmlParts.push(
+      ...(await this.layoutDecorTextHtml(zip, layoutPath, cx, cy)),
+    );
+
     if (spTree) {
       await this.walkShapes(
         zip,
@@ -438,6 +512,7 @@ export class ConvertPptService implements ConvertPptUseCase {
         cx,
         cy,
         resolvePh,
+        resolveDefaultSize,
         elements,
         htmlParts,
       );
@@ -482,11 +557,18 @@ export class ConvertPptService implements ConvertPptUseCase {
     cx: number,
     cy: number,
     resolvePh: PhResolver,
+    resolveDefaultSize: DefaultSizeResolver,
     elements: InventoryElement[],
     htmlParts: string[],
   ): Promise<void> {
     for (const sp of asArray(node['p:sp'] as XmlNode[])) {
-      const { html, element } = this.convertTextShape(sp, cx, cy, resolvePh);
+      const { html, element } = this.convertTextShape(
+        sp,
+        cx,
+        cy,
+        resolvePh,
+        resolveDefaultSize,
+      );
       if (element) {
         elements.push(element);
         htmlParts.push(html);
@@ -517,6 +599,7 @@ export class ConvertPptService implements ConvertPptUseCase {
         cx,
         cy,
         resolvePh,
+        resolveDefaultSize,
         elements,
         htmlParts,
       );
@@ -528,18 +611,19 @@ export class ConvertPptService implements ConvertPptUseCase {
     cx: number,
     cy: number,
     resolvePh: PhResolver,
+    resolveDefaultSize: DefaultSizeResolver,
   ): { html: string; element: InventoryElement | null } {
     const spPr = sp['p:spPr'] as XmlNode | undefined;
     const txBody = sp['p:txBody'] as XmlNode | undefined;
     if (!txBody) return { html: '', element: null };
 
+    const ph = this.phOf(sp);
     // 無自身 xfrm 的 placeholder → 從 layout/master 繼承座標
     let xfrm = spPr?.['a:xfrm'] as XmlNode | undefined;
-    if (!xfrm) {
-      const ph = this.phOf(sp);
-      if (ph) xfrm = resolvePh(ph.type, ph.idx);
-    }
+    if (!xfrm && ph) xfrm = resolvePh(ph.type, ph.idx);
     const pos = this.positionStyle(xfrm, cx, cy);
+    // 無自身 sz 的文字以此為基準字級（依 ph 型別繼承 master txStyles，否則退預設）
+    const baseSize = resolveDefaultSize(ph?.type) ?? DEFAULT_FONT_SIZE;
     const fill = solidFillColor(spPr);
     const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);
@@ -560,7 +644,7 @@ export class ConvertPptService implements ConvertPptUseCase {
     });
 
     const text = plainParts.join('').trim() ? plainParts.join('\n') : '';
-    const html = `<div style="position:absolute;${pos}${fillStyle}font-size:${this.fontCqw(DEFAULT_FONT_SIZE, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
+    const html = `<div style="position:absolute;${pos}${fillStyle}font-size:${this.fontCqw(baseSize, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
 
     return {
       html,
@@ -594,7 +678,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         const base64 = await file.async('base64');
         const dataUri = `data:${mime};base64,${base64}`;
         const name = mediaPath.split('/').pop() ?? 'image';
-        const html = `<div style="position:absolute;${pos}"><img src="${dataUri}" alt="${escapeHtml(name)}" style="width:100%;height:100%;object-fit:contain;"/></div>`;
+        // object-fit:fill 撐滿形狀框，比照 PPT blipFill 預設（contain 會在框內留白縮小）
+        const html = `<div style="position:absolute;${pos}"><img src="${dataUri}" alt="${escapeHtml(name)}" style="width:100%;height:100%;object-fit:fill;"/></div>`;
         return {
           html,
           element: { kind: 'image', restored: true, image: dataUri },
