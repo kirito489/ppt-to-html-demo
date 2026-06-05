@@ -165,4 +165,22 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 
 - **`instrument.ts`（Sentry init）必須自行呼叫 `dotenv.config()`**：ES module 的 import 會提升（hoist）到所有語句之前，所以即使在 `main.ts` 把 `import './instrument'` 放第一行、`dotenv.config()` 放第二行，instrument 內的 `Sentry.init` 仍會早於 main 的 dotenv 執行而讀不到 env。解法：instrument 在自己檔案最上方先 `dotenv.config({ quiet: true })` 再 `Sentry.init`。**Why:** 2026-05-30 接入 Sentry（add 可觀測性）時，instrument 必須最早載入才能正確 instrument，但又依賴 env。**How to apply:** `instrument.ts` 結構固定為「dotenv.config() → getEnv() → Sentry.init()」；`main.ts` 第一行 import 它（main 的 dotenv.config 重複呼叫無害）。
 
+## PPT → HTML 轉換 / OOXML 解析
+
+- **計算「總文字字元數」的 regex 必須排除自閉的 `<a:t/>`**：OOXML 常見空文字 run 寫成自閉 `<a:t/>`。用 `/<a:t[^>]*>([\s\S]*?)<\/a:t>/` 掃描時，`[^>]*` 會把 `<a:t/>` 的 `/` 也吃進去當成開始標籤，於是 `[\s\S]*?` 一路抓到「下一個真正的 `</a:t>`」，把中間整段 XML（含 a14: 擴充節點）都算成文字 → 文字還原率分母爆增，準確率被低估到 0.4%。**Why:** 2026-06-05 ppt-to-html-demo 用真實 LINE 簡報驗證時，文字還原率異常低，拆 slide XML 才發現自閉標籤。**How to apply:** 改用 `/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/`（`(?:\s[^>]*)?` 只允許「空白起始的屬性串」或無屬性，`<a:t/>` 因 `/` 非空白而不匹配）。實際文字擷取走 fast-xml-parser（正確忽略空節點），只有這個「分母用的 regex 計數」要小心。
+
+- **fast-xml-parser 解析 pptx 用 `removeNSPrefix: false`**：`<p:sldId>` 同時有 `id="256"` 與 `r:id="rId1"`，若開 `removeNSPrefix: true` 兩者都會被去前綴成 `id` 而**互相覆蓋**，拿不到投影片關係。保留前綴用 `@_r:id` / `@_id` 才能區分。代價是 traversal 都要帶前綴（`p:`/`a:`/`r:`）。
+
+- **不跑版 HTML 的關鍵組合：`aspect-ratio` 鎖定容器 + 百分比絕對定位 + `cqw` 字級，不要用 `transform: scale`**：外層 `width:100%` + `aspect-ratio:W/H` + `container-type:inline-size`，內部元素 `position:absolute` 用百分比 `left/top/width/height`、字級用 `cqw`（容器寬度單位）。整塊等比縮放、解析度無關，且不依賴 transform（transform / 固定 px 較易被第三方富文本編輯器的 sanitizer 清掉）。圖片以 base64 data URI 內嵌讓文章自包含。
+
+## NestJS 測試 / DI override
+
+- **`Test.overrideProvider(token).useValue()` 對「以 `useExisting` 別名提供」的 token 不會生效**：模組裡 `{ provide: SOURCE_STORAGE_PORT, useExisting: LocalFolderSourceAdapter }`，e2e 想換掉它時，override 字串 token 或 override 具體類別**都失效**，注入端拿到的仍是真實 adapter（實測 mock 的方法呼叫次數為 0）。**Why:** 2026-06-05 article.e2e 想攔截 SOURCE_STORAGE_PORT 避免攝取碰真實 fs，兩種 override 都沒攔到。**How to apply:** 不要靠 override 隔離 useExisting 的 port；改從「該 adapter 讀的設定」下手——本案在 `test/setup-env.ts` 把 `INGEST_SOURCE_DIR` / `INGEST_PROCESSED_DIR` 指到 `os.tmpdir()` 下的空目錄，真 adapter 掃空目錄回 0，既隔離又不動到 demo 樣本。要真換實作就改用 `overrideProvider(類別).useClass()` 或別用 useExisting（直接 useClass 綁 token）。
+
+## NestJS 排程 @nestjs/schedule
+
+- **`@Cron('expr')` decorator 的表達式在「模組載入時」就求值，讀不到 `.env`**：TS 把所有 `import` 提升到檔案最上方，`AppModule`（及其排程器）會在 `main.ts` 的 `dotenv.config()` 之前被 require，所以 decorator 內若用 `process.env.INGEST_CRON` 只會拿到 undefined；若在 decorator 內呼叫 `getEnv()` 更糟——會在 env 尚未載入時觸發驗證、缺 DB_HOST 等必填直接 `process.exit(1)`。**Why:** 2026-06-05 要讓排程 cron 可由 `.env` 設定。**How to apply:** 改在 `onModuleInit()`（此時 dotenv 已載入、`getEnv()` 安全）用 `SchedulerRegistry.addCronJob(name, CronJob.from({ cronTime, onTick, timeZone }))` 動態註冊。`@nestjs/schedule` 沒有 re-export `CronJob`，要顯式 `pnpm add cron@<與 schedule 相同版本>`（本專案 4.4.0）以免 `addCronJob` 型別不相容。測試環境用 `INGEST_SCHEDULE_ENABLED=false` 關閉，避免背景 cron 與開檔 handle。
+
+## 可觀測性 / Sentry & metrics
+
 - **可觀測性套件用 feature flag 包起來、預設關閉，兩種不同包法**：Sentry 由 `Sentry.init({ enabled: flag && !!DSN })` 控制——停用時 `Sentry.captureException` 是 no-op，所以呼叫端（如 GlobalExceptionFilter 的 fallback 500 分支）可無條件呼叫，不必自己判旗標。Prometheus 則用 `...(getEnv().APPLICATION_METRICS_ENABLED ? [PrometheusModule.register()] : [])` 在 AppModule imports 條件式掛載，關閉時完全不註冊 `/api/metrics`。**Why:** 2026-05-30 兩者皆要 flag 預設關閉、wiring 就緒。**How to apply:** 「SDK 自帶 enabled 開關」的（Sentry）走 init 旗標 + 呼叫端無條件呼叫；「會掛 controller / endpoint」的（Prometheus）走 imports 陣列條件 spread，避免關閉時還曝露端點。

@@ -80,5 +80,5 @@
 
 ## 12. 收尾
 
-- [ ] 12.1 更新 `tasks/todo.md`（完成項與 Open Questions 待辦）、`tasks/lessons.md`（新教訓）
-- [ ] 12.2 `openspec validate ppt-to-html-demo`；提供繁中 conventional commit 訊息（不自動 commit）
+- [x] 12.1 更新 `tasks/todo.md`（完成項與 Open Questions 待辦）、`tasks/lessons.md`（新教訓）
+- [x] 12.2 `openspec validate ppt-to-html-demo`；提供繁中 conventional commit 訊息（不自動 commit）
