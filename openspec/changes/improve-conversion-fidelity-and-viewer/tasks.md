@@ -33,5 +33,5 @@
 - [x] 6.1 補/更新單元測試（引擎 placeholder/背景/填色/對齊、ListPendingSources）
 - [x] 6.2 article.e2e：`GET /articles/pending`（200/401）；`/me` 含 name
 - [x] 6.3 `pnpm typecheck && pnpm lint && pnpm test`（含 e2e）全綠
-- [ ] 6.4 實機驗證：上傳→待轉換清單→抓取→詳情版面（標題/內文不疊、背景/填色還原）→簡報模式翻頁→個人資料名稱
-- [ ] 6.5 更新 `tasks/lessons.md`；提供繁中 conventional commit 訊息
+- [x] 6.4 實機驗證：上傳→待轉換清單→抓取→詳情版面（標題/內文不疊、背景/填色還原）→簡報模式翻頁→個人資料名稱
+- [x] 6.5 更新 `tasks/lessons.md`；提供繁中 conventional commit 訊息
