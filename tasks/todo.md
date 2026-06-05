@@ -6,6 +6,11 @@ _Tasks and cross-module items tracked across sessions._
 
 ## 完成項目
 
+- [x] **版面圖片與字級繼承（improve-master-graphics-and-text-inheritance，2026-06-06）** — 走 openspec + 逐塊 TDD，api 126／web 30／e2e 34 全綠：
+  - 渲染 layout/master 非-ph 圖片（含遞迴 grpSp）→ 補回每頁右下 logo；不計準確率、不破百。
+  - placeholder 字級/顏色繼承補上 layout/master placeholder 的 lstStyle（idx 優先/type 別名）→ 修個股訊息等內容框字太小（18pt→24pt）。
+  - 非目標：文字溢出裁切、lvl2+ 多階繼承、EMF/WMF 向量 logo。
+
 - [x] **保真度修正與檢視精簡（improve-fidelity-and-trim-viewer，2026-06-06）** — 以三份真實 LINE 財經簡報比對原檔修保真度 + 精簡詳情頁；走 openspec + 逐塊 TDD，api 121／web 30 全綠：
   - 引擎：①依文件順序還原形狀 z 上下層（修美股紅字框被圖蓋）②文字框補字型堆疊＋行距（抑制台股文字溢出壓圖）③項目符號 buChar(Wingdings)/buAutoNum/buNone 還原 ④繼承色＋主題色（theme clrScheme + master clrMap，修藍字變黑）⑤表格讀 gridCol 欄寬/tr h 列高/儲存格字級色粗體。
   - 前端：詳情頁預覽只留翻頁（移除捲動/模擬寬度）、移除「複製 HTML」；下載簡報 HTML 依投影片實際長寬比（修正方形簡報被裁——#3 真因）。

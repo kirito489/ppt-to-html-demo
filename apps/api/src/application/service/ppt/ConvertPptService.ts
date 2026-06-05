@@ -74,24 +74,36 @@ const joinZipPath = (baseDir: string, target: string): string => {
 
 type XmlNode = Record<string, unknown>;
 
-/** layout/master 的 placeholder 條目（供無自身 xfrm 的 slide placeholder 繼承座標） */
+/**
+ * layout/master 的 placeholder 條目：供無自身 xfrm 的 slide placeholder 繼承座標，
+ * 以及無自身字級/顏色的文字自其 lstStyle lvl1 defRPr 繼承字級/顏色。
+ */
 interface PlaceholderEntry {
   type?: string;
   idx?: string;
-  xfrm: XmlNode;
+  xfrm?: XmlNode;
+  sz?: number;
+  colorSrgb?: string;
+  colorScheme?: string;
 }
 
 /** 依 placeholder 的 type/idx 取得繼承座標（layout→master） */
 type PhResolver = (type?: string, idx?: string) => XmlNode | undefined;
 
-/** 依 placeholder 型別取得繼承的預設字級（百分點，如 1400=14pt）；無則 undefined */
-type DefaultSizeResolver = (phType?: string) => number | undefined;
+/** 依 placeholder 型別/idx 取得繼承的預設字級（百分點，如 1400=14pt）；無則 undefined */
+type DefaultSizeResolver = (
+  phType?: string,
+  phIdx?: string,
+) => number | undefined;
 
 /** schemeClr 值（如 tx1/accent1）→ 實際色碼（不含 #）；無則 undefined */
 type SchemeResolver = (val: string) => string | undefined;
 
-/** 依 placeholder 型別取得繼承的預設文字色（不含 #）；無則 undefined */
-type DefaultColorResolver = (phType?: string) => string | undefined;
+/** 依 placeholder 型別/idx 取得繼承的預設文字色（不含 #）；無則 undefined */
+type DefaultColorResolver = (
+  phType?: string,
+  phIdx?: string,
+) => string | undefined;
 
 // placeholder type 別名群組（slide 與 layout 的 type 未必字面相同）
 const TITLE_TYPES = new Set(['title', 'ctrTitle']);
@@ -305,12 +317,36 @@ export class ConvertPptService implements ConvertPptUseCase {
     const list: PlaceholderEntry[] = [];
     for (const sp of asArray(spTree?.['p:sp'] as XmlNode[])) {
       const ph = this.phOf(sp);
+      if (!ph) continue;
       const xfrm = (sp['p:spPr'] as XmlNode | undefined)?.['a:xfrm'] as
         | XmlNode
         | undefined;
-      if (ph && xfrm) {
-        list.push({ type: ph.type, idx: ph.idx, xfrm });
-      }
+      // placeholder 的 lstStyle lvl1 defRPr：供無自身字級/顏色的文字繼承
+      const defRPr = (
+        (
+          (sp['p:txBody'] as XmlNode | undefined)?.['a:lstStyle'] as
+            | XmlNode
+            | undefined
+        )?.['a:lvl1pPr'] as XmlNode | undefined
+      )?.['a:defRPr'] as XmlNode | undefined;
+      const sz = Number(defRPr?.['@_sz']) || undefined;
+      const solidFill = defRPr?.['a:solidFill'] as XmlNode | undefined;
+      const colorSrgb = (solidFill?.['a:srgbClr'] as XmlNode | undefined)?.[
+        '@_val'
+      ];
+      const colorScheme = (solidFill?.['a:schemeClr'] as XmlNode | undefined)?.[
+        '@_val'
+      ];
+      // 無任何可繼承資訊（座標/字級/顏色）的 placeholder 不收
+      if (!xfrm && !sz && !colorSrgb && !colorScheme) continue;
+      list.push({
+        type: ph.type,
+        idx: ph.idx,
+        xfrm,
+        sz,
+        colorSrgb: colorSrgb ? String(colorSrgb) : undefined,
+        colorScheme: colorScheme ? String(colorScheme) : undefined,
+      });
     }
     return list;
   }
@@ -449,15 +485,16 @@ export class ConvertPptService implements ConvertPptUseCase {
     };
   }
 
-  /** 依 idx（優先）或 type（含別名）比對 placeholder 座標 */
-  private matchPlaceholder(
+  /** 依 idx（優先）或 type（含別名）比對 placeholder 條目，pred 過濾「具備所需欄位者」 */
+  private findPlaceholder(
     type: string | undefined,
     idx: string | undefined,
     list: PlaceholderEntry[],
-  ): XmlNode | undefined {
+    pred: (p: PlaceholderEntry) => boolean,
+  ): PlaceholderEntry | undefined {
     if (idx != null) {
-      const m = list.find((p) => p.idx === idx);
-      if (m) return m.xfrm;
+      const m = list.find((p) => p.idx === idx && pred(p));
+      if (m) return m;
     }
     if (type != null) {
       const aliases = TITLE_TYPES.has(type)
@@ -465,10 +502,21 @@ export class ConvertPptService implements ConvertPptUseCase {
         : BODY_TYPES.has(type)
           ? BODY_TYPES
           : new Set([type]);
-      const m = list.find((p) => p.type != null && aliases.has(p.type));
-      if (m) return m.xfrm;
+      const m = list.find(
+        (p) => p.type != null && aliases.has(p.type) && pred(p),
+      );
+      if (m) return m;
     }
     return undefined;
+  }
+
+  /** 依 idx/type 比對具座標的 placeholder，回傳其 xfrm */
+  private matchPlaceholder(
+    type: string | undefined,
+    idx: string | undefined,
+    list: PlaceholderEntry[],
+  ): XmlNode | undefined {
+    return this.findPlaceholder(type, idx, list, (p) => p.xfrm != null)?.xfrm;
   }
 
   /** 背景優先序：slide → layout → master 的 <p:bg> */
@@ -552,6 +600,53 @@ export class ConvertPptService implements ConvertPptUseCase {
     return parts;
   }
 
+  /**
+   * 渲染 slideLayout／slideMaster 上「非 placeholder」的圖片（如每頁共用的 logo、頁首色條）。
+   * 以該檔自己的關係檔解析圖片，回傳由呼叫端墊在 slide 內容之下的 HTML。不計入準確率。
+   */
+  private async decorGraphicsHtml(
+    zip: JSZip,
+    xmlPath: string | undefined,
+    cx: number,
+    cy: number,
+  ): Promise<string[]> {
+    if (!xmlPath) return [];
+    const doc = await this.readXml(zip, xmlPath);
+    const root = (doc?.['p:sldLayout'] ?? doc?.['p:sldMaster']) as
+      | XmlNode
+      | undefined;
+    const spTree = (root?.['p:cSld'] as XmlNode | undefined)?.['p:spTree'] as
+      | XmlNode
+      | undefined;
+    if (!spTree) return [];
+    const rels = await this.readSlideRels(zip, xmlPath);
+    const parts: string[] = [];
+    // 含群組內（如 logo 常包在 grpSp）；忽略群組變換、以子元素自身座標定位
+    for (const pic of this.collectDecorPics(spTree)) {
+      const { html } = await this.convertPicture(zip, pic, rels, cx, cy);
+      parts.push(html);
+    }
+    return parts;
+  }
+
+  /** 遞迴收集容器（含巢狀 grpSp）內的非 placeholder 圖片 */
+  private collectDecorPics(node: XmlNode): XmlNode[] {
+    const pics: XmlNode[] = [];
+    for (const pic of asArray(node['p:pic'] as XmlNode[])) {
+      // 跳過圖片 placeholder（會由 slide 填入），只取裝飾／品牌圖片
+      const ph = (
+        (pic['p:nvPicPr'] as XmlNode | undefined)?.['p:nvPr'] as
+          | XmlNode
+          | undefined
+      )?.['p:ph'];
+      if (!ph) pics.push(pic);
+    }
+    for (const grp of asArray(node['p:grpSp'] as XmlNode[])) {
+      pics.push(...this.collectDecorPics(grp));
+    }
+    return pics;
+  }
+
   private async convertSlide(
     zip: JSZip,
     slidePath: string,
@@ -586,9 +681,13 @@ export class ConvertPptService implements ConvertPptUseCase {
       this.matchPlaceholder(type, idx, layoutPhs) ??
       this.matchPlaceholder(type, idx, masterPhs);
 
-    // master txStyles：供無自身 sz 的文字依 placeholder 型別繼承字級
+    // 字級繼承：placeholder lstStyle（layout→master）→ master txStyles（依 type）→ 預設
     const txStyles = await this.readTxStyles(zip, masterPath);
-    const resolveDefaultSize: DefaultSizeResolver = (phType) => {
+    const resolveDefaultSize: DefaultSizeResolver = (phType, phIdx) => {
+      const e =
+        this.findPlaceholder(phType, phIdx, layoutPhs, (p) => p.sz != null) ??
+        this.findPlaceholder(phType, phIdx, masterPhs, (p) => p.sz != null);
+      if (e?.sz) return e.sz;
       if (phType && TITLE_TYPES.has(phType)) return txStyles.title;
       if (phType && BODY_TYPES.has(phType)) return txStyles.body;
       return txStyles.other;
@@ -603,13 +702,28 @@ export class ConvertPptService implements ConvertPptUseCase {
     const resolveScheme: SchemeResolver = (val) =>
       this.resolveSchemeColor(val, clrMap, clrScheme);
 
-    // 繼承色：run 無自身色時，依 placeholder 型別自 master txStyles 取色
+    // 繼承色：placeholder lstStyle（layout→master，schemeClr 經色盤）→ master txStyles（依 type）
     const txColors = await this.readTxStyleColors(
       zip,
       masterPath,
       resolveScheme,
     );
-    const resolveDefaultColor: DefaultColorResolver = (phType) => {
+    const resolveDefaultColor: DefaultColorResolver = (phType, phIdx) => {
+      const e =
+        this.findPlaceholder(
+          phType,
+          phIdx,
+          layoutPhs,
+          (p) => p.colorSrgb != null || p.colorScheme != null,
+        ) ??
+        this.findPlaceholder(
+          phType,
+          phIdx,
+          masterPhs,
+          (p) => p.colorSrgb != null || p.colorScheme != null,
+        );
+      if (e?.colorSrgb) return e.colorSrgb;
+      if (e?.colorScheme) return resolveScheme(e.colorScheme);
       if (phType && TITLE_TYPES.has(phType)) return txColors.title;
       if (phType && BODY_TYPES.has(phType)) return txColors.body;
       return txColors.other;
@@ -627,7 +741,9 @@ export class ConvertPptService implements ConvertPptUseCase {
     const elements: InventoryElement[] = [];
     const htmlParts: string[] = [];
 
-    // layout 上的非 ph 裝飾文字（頁尾/聲明）先墊底，再疊 slide 內容
+    // 版面裝飾墊底（z 序：master 圖 → layout 圖 → layout 文字 → slide 內容），補回每頁共用的 logo/聲明
+    htmlParts.push(...(await this.decorGraphicsHtml(zip, masterPath, cx, cy)));
+    htmlParts.push(...(await this.decorGraphicsHtml(zip, layoutPath, cx, cy)));
     htmlParts.push(
       ...(await this.layoutDecorTextHtml(zip, layoutPath, cx, cy)),
     );
@@ -835,10 +951,10 @@ export class ConvertPptService implements ConvertPptUseCase {
     let xfrm = spPr?.['a:xfrm'] as XmlNode | undefined;
     if (!xfrm && ph) xfrm = resolvePh(ph.type, ph.idx);
     const pos = this.positionStyle(xfrm, cx, cy);
-    // 無自身 sz 的文字以此為基準字級（依 ph 型別繼承 master txStyles，否則退預設）
-    const baseSize = resolveDefaultSize(ph?.type) ?? DEFAULT_FONT_SIZE;
-    // 無自身色的文字以此為預設色（依 ph 型別繼承 master txStyles）
-    const defaultColor = resolveDefaultColor(ph?.type);
+    // 無自身 sz 的文字以此為基準字級（placeholder lstStyle → master txStyles，否則退預設）
+    const baseSize = resolveDefaultSize(ph?.type, ph?.idx) ?? DEFAULT_FONT_SIZE;
+    // 無自身色的文字以此為預設色（placeholder lstStyle → master txStyles）
+    const defaultColor = resolveDefaultColor(ph?.type, ph?.idx);
     const fill = solidFillColor(spPr);
     const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);

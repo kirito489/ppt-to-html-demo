@@ -220,3 +220,11 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 - **「下載簡報 HTML 太大被裁」真因是長寬比寫死 16:9**：`build-presentation-html.ts` 的 `.slide{width:min(100vw,calc(100vh*16/9))}` 遇正方形投影片→整頁比視窗高、被 `#deck overflow:hidden` 裁掉。**Why:** 2026-06-06 量化策略簡報 HTML 底部表格被截。**How to apply:** 取首頁 section 的 `aspect-ratio:cx/cy`，`.slide` 寬度改 `min(100vw,calc(100vh * cx/cy))`，無則退 16/9。詳情頁內嵌的翻頁預覽因在文件流中、不受此限。
 
 - **驗證引擎保真度最直接＝用 ConvertPptService 跑真實 .pptx 比對輸出 HTML**（不必起整個 server/DB）。可寫一次性 spec 以 `fs.readFileSync` 讀 Downloads 原檔、斷言修正點（z 順序用 `indexOf('<img')` vs 文字 indexOf、顏色字串、`■`、`<colgroup>`），跑完即刪不進版控。順手檢查準確率不破百（樣式類改動不應改變 inventory 與文字母數）。
+
+## PPT 引擎：layout/master 圖片與字級繼承（improve-master-graphics-and-text-inheritance，2026-06-06）
+
+- **每頁共用的 logo 在 slideMaster 上、且常包在 `<p:grpSp>` 群組內**：引擎原本只渲染 layout 的「非-ph 文字」，完全不渲染 layout/master 圖片 → 右下 logo 三份全不見。修法：新增 `decorGraphicsHtml(zip, xmlPath)` 讀該檔 spTree 的非-ph `<p:pic>`、用**該檔自己的 rels**（不可用 slide 的 rels）呼叫 `convertPicture`；z 序 master 圖→layout 圖→layout 文字→slide 內容（master 最底）；不加入 elements（不計準確率，避免破百）。**關鍵雷**：合成 fixture 把 logo 放 spTree 直屬會過測試，但真檔 logo 包在 grpSp 內 → 必須**遞迴收集群組內的 pic**（`collectDecorPics`）。實機跑真檔才抓到，單元測試的合成 fixture 不一定還原真實巢狀結構。
+
+- **無 sz/顏色的 placeholder 文字，字級/顏色要先取「該 placeholder 在 layout/master 的 lstStyle」，不能只看 master txStyles**：個股訊息內容框只有 `idx="2"`、無 `type`，run 也無 sz；引擎原本 `resolveDefaultSize(type)` 因 type=undefined 落到 `otherStyle`(18pt)，但 PowerPoint 實際取自該 placeholder 在 layout 的 `lstStyle` lvl1 `defRPr`（24pt）→ 字太小、框只填一半。修法：`readPlaceholders` 增讀 placeholder `p:txBody>a:lstStyle>a:lvl1pPr>a:defRPr` 的 sz/顏色；resolver 改為 **placeholder lstStyle(layout→master，依 idx 優先/type 別名比對) → master txStyles(依 type) → 預設**。idx-only 框因此能依 idx 命中 layout placeholder 取正確字級。
+
+- **判斷「字太小/重疊/截掉」要用引擎跑真檔量 font-size cqw，別只看截圖**：cqw 是相對「投影片寬」，投影片不一定 16:9（量化是 1:1）；同一份檔在 in-app 預覽（卡片寬）看起來小是正常縮放。用一次性 spec 讀 Downloads 原檔、dump 各文字框 font-size 與 box top/height，最能定位是「字級錯」還是「框溢出」。
