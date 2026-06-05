@@ -18,6 +18,8 @@ import { getRequestStartTime } from '../helper/request-start-time';
 import { AccountDisabledException } from '../../../../domain/exception/AccountDisabledException';
 import { PasswordChangeRequiredException } from '../../../../domain/exception/PasswordChangeRequiredException';
 import { InvalidRefreshTokenException } from '../../../../domain/exception/InvalidRefreshTokenException';
+import { ArticleNotFoundException } from '../../../../domain/exception/ArticleNotFoundException';
+import { PptParseException } from '../../../../domain/exception/PptParseException';
 
 export interface ApiErrorResponse {
   success: false;
@@ -47,6 +49,14 @@ const DOMAIN_EXCEPTION_MAP: ReadonlyArray<
   [
     InvalidRefreshTokenException,
     { status: HttpStatus.UNAUTHORIZED, code: 'INVALID_REFRESH_TOKEN' },
+  ],
+  [
+    ArticleNotFoundException,
+    { status: HttpStatus.NOT_FOUND, code: 'ARTICLE_NOT_FOUND' },
+  ],
+  [
+    PptParseException,
+    { status: HttpStatus.UNPROCESSABLE_ENTITY, code: 'PPT_PARSE_ERROR' },
   ],
 ];
 

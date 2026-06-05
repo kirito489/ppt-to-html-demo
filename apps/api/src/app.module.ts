@@ -14,6 +14,7 @@ import { AuthLogModule } from './modules/auth-log.module';
 import { SystemLogModule } from './modules/system-log.module';
 import { MemberModule } from './modules/member.module';
 import { AuthModule } from './modules/auth.module';
+import { PptModule } from './modules/ppt.module';
 import { GlobalExceptionFilter } from './adapter/in/web/filter/GlobalExceptionFilter';
 import { LoggingInterceptor } from './adapter/in/web/interceptor/LoggingInterceptor';
 import { TransformInterceptor } from './adapter/in/web/interceptor/TransformInterceptor';
@@ -137,6 +138,7 @@ import { getEnv } from './infrastructure/validate-env';
     SystemLogModule,
     MemberModule,
     AuthModule,
+    PptModule,
     HealthModule,
     // Sentry NestJS 整合（事件實際送出與否由 instrument.ts 的 enabled 控制）
     SentryModule.forRoot(),

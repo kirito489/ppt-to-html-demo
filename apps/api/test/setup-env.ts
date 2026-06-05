@@ -22,3 +22,4 @@ process.env.APP_TIMEZONE = 'Asia/Taipei';
 process.env.NOTIFICATION_ALARM_HOUR = '8';
 process.env.NOTIFICATION_ALARM_MINUTE = '0';
 process.env.AWS_MEDIA_LIBRARY_ROOT = 'local';
+process.env.INGEST_SCHEDULE_ENABLED = 'false'; // 測試不啟動 PPT 攝取排程

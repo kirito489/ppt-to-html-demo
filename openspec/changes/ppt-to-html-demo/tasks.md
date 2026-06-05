@@ -47,10 +47,10 @@
 
 ## 7. Controller / DTO / Facade / Module
 
-- [ ] 7.1 `adapter/in/web/article` 新增 DTO（Zod）：list query、ingest 回應、article 詳情
-- [ ] 7.2 新增 `ArticleController`：`GET /api/articles`、`GET /api/articles/:id`、`POST /api/articles/ingest`、`GET /api/conversion-jobs`（皆 `JwtAuthGuard`）
-- [ ] 7.3 新增 `ArticleFacade` 串接 use case；新增 `ppt.module.ts` 接線（含 `JwtModule` import）並註冊進 `app.module.ts`
-- [ ] 7.4 `GlobalExceptionFilter` 新增 `PptParseException`、`ArticleNotFoundException` 對應與 code
+- [x] 7.1 `adapter/in/web/article` 新增 DTO（Zod）：list query、ingest 回應、article 詳情
+- [x] 7.2 新增 `ArticleController`：`GET /api/articles`、`GET /api/articles/:id`、`POST /api/articles/ingest`、`GET /api/conversion-jobs`（皆 `JwtAuthGuard`）
+- [x] 7.3 新增 `ArticleFacade` 串接 use case；新增 `ppt.module.ts` 接線（含 `JwtModule` import）並註冊進 `app.module.ts`
+- [x] 7.4 `GlobalExceptionFilter` 新增 `PptParseException`、`ArticleNotFoundException` 對應與 code
 
 ## 8. Swagger / api-client
 
