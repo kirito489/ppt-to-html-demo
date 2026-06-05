@@ -74,6 +74,38 @@ const joinZipPath = (baseDir: string, target: string): string => {
 
 type XmlNode = Record<string, unknown>;
 
+/** layout/master 的 placeholder 條目（供無自身 xfrm 的 slide placeholder 繼承座標） */
+interface PlaceholderEntry {
+  type?: string;
+  idx?: string;
+  xfrm: XmlNode;
+}
+
+/** 依 placeholder 的 type/idx 取得繼承座標（layout→master） */
+type PhResolver = (type?: string, idx?: string) => XmlNode | undefined;
+
+// placeholder type 別名群組（slide 與 layout 的 type 未必字面相同）
+const TITLE_TYPES = new Set(['title', 'ctrTitle']);
+const BODY_TYPES = new Set(['body', 'subTitle']);
+
+// OOXML 段落對齊 → CSS text-align
+const ALGN_MAP: Record<string, string> = {
+  l: 'left',
+  ctr: 'center',
+  r: 'right',
+  just: 'justify',
+};
+
+/** 取 <a:srgbClr val> 色碼（無則 undefined） */
+const srgbVal = (node: XmlNode | undefined): string | undefined => {
+  const s = node?.['a:srgbClr'] as XmlNode | undefined;
+  return s?.['@_val'] ? String(s['@_val']) : undefined;
+};
+
+/** 取 <a:solidFill><a:srgbClr val> 色碼 */
+const solidFillColor = (node: XmlNode | undefined): string | undefined =>
+  srgbVal(node?.['a:solidFill'] as XmlNode | undefined);
+
 /**
  * PPT(.pptx) → HTML 轉換引擎（純 JS、無外部服務、無 LLM）。
  * 每張投影片輸出「長寬比鎖定 + 百分比絕對定位 + cqw 字級」的自包含區塊，確保不跑版。
@@ -228,6 +260,130 @@ export class ConvertPptService implements ConvertPptUseCase {
     return map;
   }
 
+  /** 依關係 Type 取得目標路徑（如 slideLayout / slideMaster） */
+  private async resolveRelByType(
+    zip: JSZip,
+    sourcePath: string,
+    typeSubstr: string,
+  ): Promise<string | undefined> {
+    const slash = sourcePath.lastIndexOf('/');
+    const dir = sourcePath.slice(0, slash);
+    const file = sourcePath.slice(slash + 1);
+    const doc = await this.readXml(zip, `${dir}/_rels/${file}.rels`);
+    const rels = asArray(
+      (doc?.['Relationships'] as XmlNode | undefined)?.[
+        'Relationship'
+      ] as XmlNode[],
+    );
+    const rel = rels.find((r) =>
+      String(r['@_Type'] ?? '').includes(typeSubstr),
+    );
+    return rel ? joinZipPath(dir, String(rel['@_Target'])) : undefined;
+  }
+
+  /** 讀取 layout/master 的 placeholder 座標清單 */
+  private async readPlaceholders(
+    zip: JSZip,
+    xmlPath: string,
+  ): Promise<PlaceholderEntry[]> {
+    const doc = await this.readXml(zip, xmlPath);
+    const root = (doc?.['p:sldLayout'] ?? doc?.['p:sldMaster']) as
+      | XmlNode
+      | undefined;
+    const spTree = (root?.['p:cSld'] as XmlNode | undefined)?.['p:spTree'] as
+      | XmlNode
+      | undefined;
+    const list: PlaceholderEntry[] = [];
+    for (const sp of asArray(spTree?.['p:sp'] as XmlNode[])) {
+      const ph = this.phOf(sp);
+      const xfrm = (sp['p:spPr'] as XmlNode | undefined)?.['a:xfrm'] as
+        | XmlNode
+        | undefined;
+      if (ph && xfrm) {
+        list.push({ type: ph.type, idx: ph.idx, xfrm });
+      }
+    }
+    return list;
+  }
+
+  /** 取形狀的 placeholder type/idx（無則 undefined） */
+  private phOf(sp: XmlNode): { type?: string; idx?: string } | undefined {
+    const ph = (
+      (sp['p:nvSpPr'] as XmlNode | undefined)?.['p:nvPr'] as XmlNode | undefined
+    )?.['p:ph'] as XmlNode | undefined;
+    if (!ph) return undefined;
+    return {
+      type: ph['@_type'] ? String(ph['@_type']) : undefined,
+      idx: ph['@_idx'] ? String(ph['@_idx']) : undefined,
+    };
+  }
+
+  /** 依 idx（優先）或 type（含別名）比對 placeholder 座標 */
+  private matchPlaceholder(
+    type: string | undefined,
+    idx: string | undefined,
+    list: PlaceholderEntry[],
+  ): XmlNode | undefined {
+    if (idx != null) {
+      const m = list.find((p) => p.idx === idx);
+      if (m) return m.xfrm;
+    }
+    if (type != null) {
+      const aliases = TITLE_TYPES.has(type)
+        ? TITLE_TYPES
+        : BODY_TYPES.has(type)
+          ? BODY_TYPES
+          : new Set([type]);
+      const m = list.find((p) => p.type != null && aliases.has(p.type));
+      if (m) return m.xfrm;
+    }
+    return undefined;
+  }
+
+  /** 背景優先序：slide → layout → master 的 <p:bg> */
+  private async resolveBackground(
+    zip: JSZip,
+    slideCSld: XmlNode | undefined,
+    layoutPath: string | undefined,
+    masterPath: string | undefined,
+  ): Promise<string | undefined> {
+    const fromSlide = this.bgCss(slideCSld?.['p:bg'] as XmlNode | undefined);
+    if (fromSlide) return fromSlide;
+    for (const [path, rootKey] of [
+      [layoutPath, 'p:sldLayout'],
+      [masterPath, 'p:sldMaster'],
+    ] as const) {
+      if (!path) continue;
+      const doc = await this.readXml(zip, path);
+      const cSld = (doc?.[rootKey] as XmlNode | undefined)?.['p:cSld'] as
+        | XmlNode
+        | undefined;
+      const c = this.bgCss(cSld?.['p:bg'] as XmlNode | undefined);
+      if (c) return c;
+    }
+    return undefined;
+  }
+
+  /** <p:bg> → CSS 背景（solidFill / 線性漸層；bgRef 主題色不處理） */
+  private bgCss(bg: XmlNode | undefined): string | undefined {
+    const bgPr = bg?.['p:bgPr'] as XmlNode | undefined;
+    if (!bgPr) return undefined;
+    const solid = solidFillColor(bgPr);
+    if (solid) return `#${solid}`;
+    const grad = bgPr['a:gradFill'] as XmlNode | undefined;
+    if (grad) {
+      const gsLst = grad['a:gsLst'] as XmlNode | undefined;
+      const colors = asArray(gsLst?.['a:gs'] as XmlNode[])
+        .map((gs) => srgbVal(gs))
+        .filter((c): c is string => Boolean(c));
+      if (colors.length >= 2) {
+        return `linear-gradient(135deg,#${colors[0]},#${colors[colors.length - 1]})`;
+      }
+      if (colors.length === 1) return `#${colors[0]}`;
+    }
+    return undefined;
+  }
+
   private async convertSlide(
     zip: JSZip,
     slidePath: string,
@@ -243,15 +399,48 @@ export class ConvertPptService implements ConvertPptUseCase {
     const rawXml = (await zip.file(slidePath)?.async('string')) ?? '';
     const rels = await this.readSlideRels(zip, slidePath);
 
+    // 解析 layout / master 的 placeholder 座標，供無自身 xfrm 的 placeholder 繼承
+    const layoutPath = await this.resolveRelByType(
+      zip,
+      slidePath,
+      'slideLayout',
+    );
+    const layoutPhs = layoutPath
+      ? await this.readPlaceholders(zip, layoutPath)
+      : [];
+    const masterPath = layoutPath
+      ? await this.resolveRelByType(zip, layoutPath, 'slideMaster')
+      : undefined;
+    const masterPhs = masterPath
+      ? await this.readPlaceholders(zip, masterPath)
+      : [];
+    const resolvePh: PhResolver = (type, idx) =>
+      this.matchPlaceholder(type, idx, layoutPhs) ??
+      this.matchPlaceholder(type, idx, masterPhs);
+
     const sld = doc?.['p:sld'] as XmlNode | undefined;
     const cSld = sld?.['p:cSld'] as XmlNode | undefined;
     const spTree = cSld?.['p:spTree'] as XmlNode | undefined;
+
+    // 背景：slide → layout → master 的 <p:bg>
+    const background =
+      (await this.resolveBackground(zip, cSld, layoutPath, masterPath)) ??
+      '#fff';
 
     const elements: InventoryElement[] = [];
     const htmlParts: string[] = [];
 
     if (spTree) {
-      await this.walkShapes(zip, spTree, rels, cx, cy, elements, htmlParts);
+      await this.walkShapes(
+        zip,
+        spTree,
+        rels,
+        cx,
+        cy,
+        resolvePh,
+        elements,
+        htmlParts,
+      );
     }
 
     // 文字還原率：以投影片內所有 <a:t> 字元數為母數
@@ -280,7 +469,7 @@ export class ConvertPptService implements ConvertPptUseCase {
       overall: weighted(coverage, text, image, this.weights()),
     };
 
-    const html = `<section class="ppt-slide" style="position:relative;width:100%;aspect-ratio:${cx}/${cy};container-type:inline-size;overflow:hidden;background:#fff;">${htmlParts.join('')}</section>`;
+    const html = `<section class="ppt-slide" style="position:relative;width:100%;aspect-ratio:${cx}/${cy};container-type:inline-size;overflow:hidden;background:${background};">${htmlParts.join('')}</section>`;
 
     return { html, inventory: { index, elements }, accuracy };
   }
@@ -292,11 +481,12 @@ export class ConvertPptService implements ConvertPptUseCase {
     rels: Map<string, string>,
     cx: number,
     cy: number,
+    resolvePh: PhResolver,
     elements: InventoryElement[],
     htmlParts: string[],
   ): Promise<void> {
     for (const sp of asArray(node['p:sp'] as XmlNode[])) {
-      const { html, element } = this.convertTextShape(sp, cx, cy);
+      const { html, element } = this.convertTextShape(sp, cx, cy, resolvePh);
       if (element) {
         elements.push(element);
         htmlParts.push(html);
@@ -320,7 +510,16 @@ export class ConvertPptService implements ConvertPptUseCase {
     }
     for (const grp of asArray(node['p:grpSp'] as XmlNode[])) {
       // 群組：best-effort 遞迴（忽略群組變換，子元素以自身座標定位）
-      await this.walkShapes(zip, grp, rels, cx, cy, elements, htmlParts);
+      await this.walkShapes(
+        zip,
+        grp,
+        rels,
+        cx,
+        cy,
+        resolvePh,
+        elements,
+        htmlParts,
+      );
     }
   }
 
@@ -328,31 +527,40 @@ export class ConvertPptService implements ConvertPptUseCase {
     sp: XmlNode,
     cx: number,
     cy: number,
+    resolvePh: PhResolver,
   ): { html: string; element: InventoryElement | null } {
     const spPr = sp['p:spPr'] as XmlNode | undefined;
     const txBody = sp['p:txBody'] as XmlNode | undefined;
     if (!txBody) return { html: '', element: null };
 
-    const pos = this.positionStyle(
-      spPr?.['a:xfrm'] as XmlNode | undefined,
-      cx,
-      cy,
-    );
+    // 無自身 xfrm 的 placeholder → 從 layout/master 繼承座標
+    let xfrm = spPr?.['a:xfrm'] as XmlNode | undefined;
+    if (!xfrm) {
+      const ph = this.phOf(sp);
+      if (ph) xfrm = resolvePh(ph.type, ph.idx);
+    }
+    const pos = this.positionStyle(xfrm, cx, cy);
+    const fill = solidFillColor(spPr);
+    const fillStyle = fill ? `background:#${fill};` : '';
     const paragraphs = asArray(txBody['a:p'] as XmlNode[]);
 
     const plainParts: string[] = [];
     const htmlParagraphs = paragraphs.map((p) => {
+      const algn = (p['a:pPr'] as XmlNode | undefined)?.['@_algn'];
+      const alignStyle = algn
+        ? `text-align:${ALGN_MAP[String(algn)] ?? 'left'};`
+        : '';
       const runs = asArray(p['a:r'] as XmlNode[]);
       const spans = runs.map((r) => {
         const t = textOf(r['a:t']);
         plainParts.push(t);
         return `<span style="${this.runStyle(r['a:rPr'] as XmlNode | undefined, cx)}">${escapeHtml(t)}</span>`;
       });
-      return `<p style="margin:0;">${spans.join('')}</p>`;
+      return `<p style="margin:0;${alignStyle}">${spans.join('')}</p>`;
     });
 
     const text = plainParts.join('').trim() ? plainParts.join('\n') : '';
-    const html = `<div style="position:absolute;${pos}font-size:${this.fontCqw(DEFAULT_FONT_SIZE, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
+    const html = `<div style="position:absolute;${pos}${fillStyle}font-size:${this.fontCqw(DEFAULT_FONT_SIZE, cx)}cqw;">${htmlParagraphs.join('')}</div>`;
 
     return {
       html,
@@ -441,7 +649,9 @@ export class ConvertPptService implements ConvertPptUseCase {
         const txBody = tc['a:txBody'] as XmlNode | undefined;
         const text = this.extractTxBodyText(txBody);
         rowCells.push(text);
-        return `<td style="border:1px solid #d1d5db;padding:0.4cqw 0.8cqw;">${escapeHtml(text)}</td>`;
+        const fill = solidFillColor(tc['a:tcPr'] as XmlNode | undefined);
+        const fillStyle = fill ? `background:#${fill};` : '';
+        return `<td style="border:1px solid #d1d5db;padding:0.4cqw 0.8cqw;${fillStyle}">${escapeHtml(text)}</td>`;
       });
       cells.push(rowCells);
       return `<tr>${cellHtml.join('')}</tr>`;

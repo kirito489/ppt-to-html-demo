@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { RefreshCw, Upload } from 'lucide-react'
+import { FileClock, RefreshCw, Upload } from 'lucide-react'
 
 import { useApiMutation, useApiQuery } from '@/api/client'
 import { tokenStorage } from '@/lib/storage'
@@ -28,6 +28,7 @@ export const ArticlesListPage = () => {
   const articlesQuery = useApiQuery('GET', '/articles', {
     params: { query: { page, limit: LIMIT } },
   })
+  const pendingQuery = useApiQuery('GET', '/articles/pending')
   const ingest = useApiMutation('POST', '/articles/ingest')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -39,7 +40,7 @@ export const ArticlesListPage = () => {
       toast.success(
         `攝取完成：掃描 ${job.filesScanned}、成功 ${job.filesConverted}、失敗 ${job.filesFailed}`,
       )
-      await articlesQuery.refetch()
+      await Promise.all([articlesQuery.refetch(), pendingQuery.refetch()])
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '攝取失敗')
     }
@@ -64,6 +65,7 @@ export const ArticlesListPage = () => {
       toast.success(
         `已上傳「${body.data?.filename}」到公槽，請按「立即抓取轉換」或等排程`,
       )
+      await pendingQuery.refetch()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '上傳失敗')
     } finally {
@@ -74,9 +76,39 @@ export const ArticlesListPage = () => {
 
   const items = articlesQuery.data?.items ?? []
   const meta = articlesQuery.data?.meta
+  const pendingItems = pendingQuery.data?.items ?? []
 
   return (
-    <Card>
+    <div className="space-y-4">
+      {pendingItems.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50/50">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileClock className="size-4 text-amber-600" />
+              待轉換（{pendingItems.length}）
+            </CardTitle>
+            <Button
+              size="sm"
+              onClick={handleIngest}
+              disabled={ingest.isPending}
+            >
+              <RefreshCw className={ingest.isPending ? 'animate-spin' : ''} />
+              {ingest.isPending ? '抓取中…' : '立即抓取轉換'}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <ul className="text-muted-foreground space-y-1 text-sm">
+              {pendingItems.map((p) => (
+                <li key={p.name} className="font-mono">
+                  {p.name}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>轉換文章</CardTitle>
         <div className="flex items-center gap-2">
@@ -188,6 +220,7 @@ export const ArticlesListPage = () => {
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   )
 }

@@ -51,6 +51,7 @@ export class PrismaMemberRepository
     return {
       id: member.id,
       email: member.email,
+      name: member.member,
       roleName: DEFAULT_ROLE_NAME,
       roleCode: DEFAULT_ROLE_CODE,
       permissions: [],

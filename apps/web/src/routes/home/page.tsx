@@ -35,11 +35,9 @@ export const HomePage = () => {
           {meQuery.data && (
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted-foreground">名稱</dt>
-              <dd>{meQuery.data.member}</dd>
+              <dd>{meQuery.data.name}</dd>
               <dt className="text-muted-foreground">Email</dt>
               <dd>{meQuery.data.email}</dd>
-              <dt className="text-muted-foreground">角色</dt>
-              <dd>{meQuery.data.roleName}</dd>
             </dl>
           )}
         </CardContent>

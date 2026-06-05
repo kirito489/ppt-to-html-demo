@@ -20,6 +20,11 @@ import {
   UploadPptResult,
   UploadPptUseCase,
 } from '../port/in/ppt/UploadPptUseCase';
+import {
+  LIST_PENDING_SOURCES_USE_CASE,
+  ListPendingSourcesUseCase,
+  PendingSource,
+} from '../port/in/ppt/ListPendingSourcesUseCase';
 import type {
   ArticlesPage,
   ListArticlesParams,
@@ -44,11 +49,18 @@ export class PptFacade {
     private readonly ingestPptUseCase: IngestPptUseCase,
     @Inject(UPLOAD_PPT_USE_CASE)
     private readonly uploadPptUseCase: UploadPptUseCase,
+    @Inject(LIST_PENDING_SOURCES_USE_CASE)
+    private readonly listPendingSourcesUseCase: ListPendingSourcesUseCase,
   ) {}
 
   /** 上傳單一 .pptx 至公槽（不立即轉換），回傳存入的檔名 */
   upload(buffer: Buffer, filename: string): Promise<UploadPptResult> {
     return this.uploadPptUseCase.execute({ buffer, filename });
+  }
+
+  /** 列出公槽中待轉換的來源檔 */
+  listPending(): Promise<PendingSource[]> {
+    return this.listPendingSourcesUseCase.execute();
   }
 
   listArticles(params: ListArticlesParams): Promise<ArticlesPage> {
