@@ -9,6 +9,9 @@ import { RequireAuth } from '@/components/RequireAuth'
 import { Layout } from '@/routes/_layout'
 import { LoginPage } from '@/routes/login/page'
 import { HomePage } from '@/routes/home/page'
+import { ArticlesListPage } from '@/routes/articles/page'
+import { ArticleDetailPage } from '@/routes/articles/detail'
+import { ConversionJobsPage } from '@/routes/jobs/page'
 import { queryClient } from '@/api/query-client'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -30,6 +33,12 @@ export const App = () => {
                 }
               >
                 <Route path="/" element={<HomePage />} />
+                <Route path="/articles" element={<ArticlesListPage />} />
+                <Route path="/articles/:id" element={<ArticleDetailPage />} />
+                <Route
+                  path="/conversion-jobs"
+                  element={<ConversionJobsPage />}
+                />
               </Route>
             </Routes>
           </BrowserRouter>

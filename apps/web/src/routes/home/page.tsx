@@ -9,11 +9,12 @@ export const HomePage = () => {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>歡迎回來</CardTitle>
+          <CardTitle>PPT → HTML 轉換 Demo</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            管理後台骨架已建立完成，後續會接上會員、角色、權限等模組。
+            系統會定時從公槽（demo 以本地資料夾模擬）抓取 .pptx，轉成可在編輯器顯示且不跑版的
+            HTML，並提供準確率數據。請到左側「文章列表」檢視結果或手動觸發抓取。
           </p>
         </CardContent>
       </Card>
