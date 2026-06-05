@@ -34,9 +34,9 @@
 
 ## 6. 前端預覽精簡（前端）
 
-- [ ] 6.1 `slide-preview.tsx`：移除 `mode`/`width` 狀態與「捲動」「簡報模式」「模擬寬度（手機/平板/桌機）」按鈕，固定為翻頁檢視（保留上一頁/下一頁/頁碼/鍵盤 ←/→）
-- [ ] 6.2 `detail.tsx`：移除「複製 HTML」按鈕與 `copyHtml`，保留「下載 HTML」「下載簡報 HTML」
-- [ ] 6.3 調整對應前端測試（slide-preview / detail 相關），triad（含 web 測試）全綠後勾選並提交（refactor: 詳情頁預覽只留翻頁，移除捲動/模擬寬度/複製 HTML）
+- [x] 6.1 `slide-preview.tsx`：移除 `mode`/`width` 狀態與「捲動」「簡報模式」「模擬寬度（手機/平板/桌機）」按鈕，固定為翻頁檢視（保留上一頁/下一頁/頁碼/鍵盤 ←/→）
+- [x] 6.2 `detail.tsx`：移除「複製 HTML」按鈕與 `copyHtml`，保留「下載 HTML」「下載簡報 HTML」
+- [x] 6.3 調整對應前端測試（slide-preview / detail 相關），triad（含 web 測試）全綠後勾選並提交（refactor: 詳情頁預覽只留翻頁，移除捲動/模擬寬度/複製 HTML）
 
 ## 7. 驗證
 
