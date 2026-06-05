@@ -54,6 +54,6 @@
 
 ## 9. 收尾
 
-- [ ] 9.1 更新 `tasks/lessons.md`（z-order 文件順序、繼承色/主題色、bullets、表格保真度、簡報匯出長寬比等新教訓）與 `tasks/todo.md`
-- [ ] 9.2 `openspec archive improve-fidelity-and-trim-viewer -y`（併 master specs + 移 archive）
-- [ ] 9.3 提供 archive commit 指令給使用者（條列格式）
+- [x] 9.1 更新 `tasks/lessons.md`（z-order 文件順序、繼承色/主題色、bullets、表格保真度、簡報匯出長寬比等新教訓）與 `tasks/todo.md`
+- [x] 9.2 `openspec archive improve-fidelity-and-trim-viewer -y`（併 master specs + 移 archive）
+- [x] 9.3 提供 archive commit 指令給使用者（條列格式）
