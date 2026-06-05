@@ -26,17 +26,21 @@ const SENSITIVE_QUERY_PARAMS = new Set([
   'key',
 ]);
 
+// 整段或內嵌於 HTML 等字串中的 base64 圖片；轉換後文章 html 內含大量 <img src="data:image...">，
+// 不移除會讓 system log 的 response 動輒數百 KB 而超出 DB TEXT 欄位
+const BASE64_IMAGE_RE = /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi;
+
 export const sanitize = (obj: unknown): string => {
   try {
     return JSON.stringify(obj, (key, value) => {
-      if (typeof value === 'string' && value.startsWith('data:image')) {
-        return '[BASE64_IMAGE_REMOVED]';
-      }
       if (SENSITIVE_KEYS.has(key.toLowerCase())) {
         return '[REDACTED]';
       }
       if (key === 'file' || key === 'files') {
         return '[FILE_DATA_REMOVED]';
+      }
+      if (typeof value === 'string') {
+        return value.replace(BASE64_IMAGE_RE, '[BASE64_IMAGE_REMOVED]');
       }
       return value;
     });

@@ -173,6 +173,12 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 
 - **不跑版 HTML 的關鍵組合：`aspect-ratio` 鎖定容器 + 百分比絕對定位 + `cqw` 字級，不要用 `transform: scale`**：外層 `width:100%` + `aspect-ratio:W/H` + `container-type:inline-size`，內部元素 `position:absolute` 用百分比 `left/top/width/height`、字級用 `cqw`（容器寬度單位）。整塊等比縮放、解析度無關，且不依賴 transform（transform / 固定 px 較易被第三方富文本編輯器的 sanitizer 清掉）。圖片以 base64 data URI 內嵌讓文章自包含。
 
+- **layout/master 補渲的裝飾文字（頁尾/聲明）只進 htmlParts、不可進 `elements`**：準確率的文字還原率分母 `totalTextChars` 取自「slide 自身 XML」的 `<a:t>` 字元數；若把 layout/master 上的文字也 push 進 `elements`（restoredTextChars 分子），分子會含分母沒有的字 → 還原率 >100%、整體準確率失真。**Why:** 2026-06-06 improve-fidelity 補渲 layout 免責聲明時，若當成一般元素計入會破壞準確率。**How to apply:** 補渲的 layout/master 非 ph 文字只 `htmlParts.push(html)`（純顯示、墊在 slide 內容之下），不要加入 `elements`；它是「還原視覺」而非「slide 元素」，不參與涵蓋率/還原率統計。
+
+- **圖片用 `object-fit:fill` 而非 `contain`**：PPT 的 `blipFill` 預設把圖延展填滿形狀矩形；`contain` 會在框內留白縮小，視覺上「圖片變小、比例怪」。作者已把形狀框調成接近圖比例，用 `fill` 撐滿才符合 PPT 呈現。
+
+- **文字 run 無 `sz` 時要從 master `<p:txStyles>` 繼承字級，不要硬退預設**：很多 body 文字 run 不帶 `sz`（靠版面 lstStyle/母片 txStyles 給預設）。若一律退 18pt，長內文會比 PPT 實際大很多 → 在固定框內換行行數爆增 → 向下溢出、被 `overflow:hidden` 裁切或被下層圖片（DOM 在後、z-order 在上）蓋住。**Why:** 2026-06-06 美股簡報 27 個 rPr 有 20 個無 sz，退 18pt 造成內文溢出/被圖蓋。**How to apply:** 解析母片 `<p:txStyles>` 的 `titleStyle/bodyStyle/otherStyle` lvl1 `defRPr@sz`，依形狀 placeholder 型別（TITLE_TYPES→title、BODY_TYPES→body、其它→other）取繼承字級當該文字框基準字級，查無才退 18pt。
+
 ## NestJS 測試 / DI override
 
 - **`Test.overrideProvider(token).useValue()` 對「以 `useExisting` 別名提供」的 token 不會生效**：模組裡 `{ provide: SOURCE_STORAGE_PORT, useExisting: LocalFolderSourceAdapter }`，e2e 想換掉它時，override 字串 token 或 override 具體類別**都失效**，注入端拿到的仍是真實 adapter（實測 mock 的方法呼叫次數為 0）。**Why:** 2026-06-05 article.e2e 想攔截 SOURCE_STORAGE_PORT 避免攝取碰真實 fs，兩種 override 都沒攔到。**How to apply:** 不要靠 override 隔離 useExisting 的 port；改從「該 adapter 讀的設定」下手——本案在 `test/setup-env.ts` 把 `INGEST_SOURCE_DIR` / `INGEST_PROCESSED_DIR` 指到 `os.tmpdir()` 下的空目錄，真 adapter 掃空目錄回 0，既隔離又不動到 demo 樣本。要真換實作就改用 `overrideProvider(類別).useClass()` 或別用 useExisting（直接 useClass 綁 token）。

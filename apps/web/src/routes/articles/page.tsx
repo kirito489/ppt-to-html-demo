@@ -80,37 +80,9 @@ export const ArticlesListPage = () => {
 
   return (
     <div className="space-y-4">
-      {pendingItems.length > 0 && (
-        <Card className="border-amber-300 bg-amber-50/50">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileClock className="size-4 text-amber-600" />
-              待轉換（{pendingItems.length}）
-            </CardTitle>
-            <Button
-              size="sm"
-              onClick={handleIngest}
-              disabled={ingest.isPending}
-            >
-              <RefreshCw className={ingest.isPending ? 'animate-spin' : ''} />
-              {ingest.isPending ? '抓取中…' : '立即抓取轉換'}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-muted-foreground space-y-1 text-sm">
-              {pendingItems.map((p) => (
-                <li key={p.name} className="font-mono">
-                  {p.name}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>轉換文章</CardTitle>
+      {/* 頁面動作列：上傳／抓取放卡片外，待轉換與文章列表共用、不重覆 */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">轉換文章</h2>
         <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -135,6 +107,34 @@ export const ArticlesListPage = () => {
             {ingest.isPending ? '抓取中…' : '立即抓取轉換'}
           </Button>
         </div>
+      </div>
+
+      {pendingItems.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileClock className="size-4 text-amber-600" />
+              待轉換（{pendingItems.length}）
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-2 text-sm">
+              以下檔案已在公槽待轉換，請按右上「立即抓取轉換」或等待排程。
+            </p>
+            <ul className="text-muted-foreground space-y-1 text-sm">
+              {pendingItems.map((p) => (
+                <li key={p.name} className="font-mono">
+                  {p.name}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+      <CardHeader>
+        <CardTitle>文章列表</CardTitle>
       </CardHeader>
       <CardContent>
         {articlesQuery.isLoading && (

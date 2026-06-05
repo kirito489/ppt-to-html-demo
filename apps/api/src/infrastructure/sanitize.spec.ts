@@ -47,6 +47,16 @@ describe('sanitize', () => {
     expect(parsed.avatar).toBe('[BASE64_IMAGE_REMOVED]');
   });
 
+  it('移除 HTML 字串中內嵌的 base64 圖片', () => {
+    const html =
+      '<div><img src="data:image/png;base64,AAAABBBBCCCC=="/>後文字</div>';
+    const parsed = JSON.parse(sanitize({ html }));
+    expect(parsed.html).toBe(
+      '<div><img src="[BASE64_IMAGE_REMOVED]"/>後文字</div>',
+    );
+    expect(parsed.html).not.toContain('base64,AAAA');
+  });
+
   it('遇到 file / files 欄位替換為標記', () => {
     const parsed = JSON.parse(sanitize({ file: { name: 'x' }, files: [] }));
     expect(parsed.file).toBe('[FILE_DATA_REMOVED]');
