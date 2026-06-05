@@ -19,10 +19,10 @@
 
 ## 3. Domain / Port
 
-- [ ] 3.1 `domain/model` 新增 `ConvertedArticle`、`ConversionJob` 領域實體；定義轉換中介結構型別（投影片/元素/對照清單/準確率）
-- [ ] 3.2 `application/port/out` 新增 `SourceStoragePort`（list/read/remove）、`SaveConvertedArticlePort`、`LoadConvertedArticlePort`、`SaveConversionJobPort`
-- [ ] 3.3 `application/port/in` 新增 `ConvertPptUseCase`、`IngestPptUseCase`、`ListArticlesUseCase`、`GetArticleUseCase`、`ListConversionJobsUseCase`
-- [ ] 3.4 `domain/exception` 新增 `PptParseException`、`ArticleNotFoundException`
+- [x] 3.1 `domain/model` 新增 `ConvertedArticle`、`ConversionJob` 領域實體；定義轉換中介結構型別（投影片/元素/對照清單/準確率）
+- [x] 3.2 `application/port/out` 新增 `SourceStoragePort`（list/read/remove）、`SaveConvertedArticlePort`、`LoadConvertedArticlePort`、`SaveConversionJobPort`
+- [x] 3.3 `application/port/in` 新增 `ConvertPptUseCase`、`IngestPptUseCase`、`ListArticlesUseCase`、`GetArticleUseCase`、`ListConversionJobsUseCase`
+- [x] 3.4 `domain/exception` 新增 `PptParseException`、`ArticleNotFoundException`
 
 ## 4. 轉換引擎 Service（TDD）
 
