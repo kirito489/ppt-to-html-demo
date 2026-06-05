@@ -6,6 +6,8 @@ _Tasks and cross-module items tracked across sessions._
 
 ## 完成項目
 
+- [x] **文字框預設行高（default-line-height-for-text，2026-06-06）** — 無 `<a:lnSpc>` 時套近 PP 單行的 `line-height:1.2`（取代瀏覽器 normal ~1.4–1.5），修台股盤中右欄長文溢出覆蓋頁尾/logo；不裁字、不改字級。TDD + triad 全綠。
+
 - [x] **版面圖片與字級繼承（improve-master-graphics-and-text-inheritance，2026-06-06）** — 走 openspec + 逐塊 TDD，api 126／web 30／e2e 34 全綠：
   - 渲染 layout/master 非-ph 圖片（含遞迴 grpSp）→ 補回每頁右下 logo；不計準確率、不破百。
   - placeholder 字級/顏色繼承補上 layout/master placeholder 的 lstStyle（idx 優先/type 別名）→ 修個股訊息等內容框字太小（18pt→24pt）。

@@ -71,4 +71,10 @@ describe('ConvertPptService 文字字型與行距（抑制溢出）', () => {
     const { html } = await service.execute({ buffer, filename: 't.pptx' });
     expect(html).toContain('line-height:24pt');
   });
+
+  it('段落無 lnSpc → 套接近 PP 單行的預設行高 1.2', async () => {
+    const buffer = await buildPptx(slide(textShape('無行距段落')));
+    const { html } = await service.execute({ buffer, filename: 't.pptx' });
+    expect(html).toContain('line-height:1.2');
+  });
 });

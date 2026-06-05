@@ -23,6 +23,8 @@ const EMU_PER_POINT = 12700;
 const DEFAULT_CX = 9144000;
 const DEFAULT_CY = 6858000;
 const DEFAULT_FONT_SIZE = 1800; // 18pt（OOXML 以百分點表示）
+// 無 a:lnSpc 時的預設行高：近似 PowerPoint 單行間距，較瀏覽器 normal（CJK ~1.4-1.5）緊以抑制溢出
+const DEFAULT_LINE_HEIGHT = 1.2;
 
 const SUPPORTED_IMAGE_EXT: Record<string, string> = {
   png: 'image/png',
@@ -1217,15 +1219,18 @@ export class ConvertPptService implements ConvertPptUseCase {
       : `font-family:${ConvertPptService.CJK_FALLBACK};`;
   }
 
-  /** 段落行距 <a:lnSpc>：spcPct → 無單位 line-height；spcPts → pt */
+  /**
+   * 段落行距 <a:lnSpc>：spcPct → 無單位 line-height；spcPts → pt。
+   * 無 lnSpc 時套接近 PowerPoint 單行間距的預設行高，取代瀏覽器偏鬆的 normal、抑制溢出。
+   */
   private lineHeight(pPr: XmlNode | undefined): string {
     const lnSpc = pPr?.['a:lnSpc'] as XmlNode | undefined;
-    if (!lnSpc) return '';
+    if (!lnSpc) return `line-height:${DEFAULT_LINE_HEIGHT};`;
     const pct = (lnSpc['a:spcPct'] as XmlNode | undefined)?.['@_val'];
     if (pct) return `line-height:${round(Number(pct) / 100000, 3)};`;
     const pts = (lnSpc['a:spcPts'] as XmlNode | undefined)?.['@_val'];
     if (pts) return `line-height:${Number(pts) / 100}pt;`;
-    return '';
+    return `line-height:${DEFAULT_LINE_HEIGHT};`;
   }
 
   // Wingdings 常用項目符號碼 → Unicode
