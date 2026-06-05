@@ -228,3 +228,8 @@ _Patterns, rules, and validated decisions accumulated over time. Updated after c
 - **無 sz/顏色的 placeholder 文字，字級/顏色要先取「該 placeholder 在 layout/master 的 lstStyle」，不能只看 master txStyles**：個股訊息內容框只有 `idx="2"`、無 `type`，run 也無 sz；引擎原本 `resolveDefaultSize(type)` 因 type=undefined 落到 `otherStyle`(18pt)，但 PowerPoint 實際取自該 placeholder 在 layout 的 `lstStyle` lvl1 `defRPr`（24pt）→ 字太小、框只填一半。修法：`readPlaceholders` 增讀 placeholder `p:txBody>a:lstStyle>a:lvl1pPr>a:defRPr` 的 sz/顏色；resolver 改為 **placeholder lstStyle(layout→master，依 idx 優先/type 別名比對) → master txStyles(依 type) → 預設**。idx-only 框因此能依 idx 命中 layout placeholder 取正確字級。
 
 - **判斷「字太小/重疊/截掉」要用引擎跑真檔量 font-size cqw，別只看截圖**：cqw 是相對「投影片寬」，投影片不一定 16:9（量化是 1:1）；同一份檔在 in-app 預覽（卡片寬）看起來小是正常縮放。用一次性 spec 讀 Downloads 原檔、dump 各文字框 font-size 與 box top/height，最能定位是「字級錯」還是「框溢出」。
+
+## PPT 引擎：無 lnSpc 的預設行高（default-line-height-for-text，2026-06-06）
+
+- **文字框沒有 `<a:lnSpc>` 時別讓瀏覽器套 `normal`**：CJK 替代字型（Noto Sans TC/微軟正黑體）的 `line-height: normal` 約 1.4–1.5，比 PowerPoint 預設單行間距（約 1.2）鬆很多；文字量大的框（台股盤中右欄 600+ 字、20+ 行）會累積多出 15–25% 高度 → 溢出框、向下覆蓋頁尾聲明與 logo（看起來像「重疊／被截」，也讓 logo 看起來怪）。修法：`lineHeight()` 無 lnSpc 時回傳 `line-height:1.2`（常數），不裁字、不改字級即大幅收掉溢出。1.0 過緊、1.5 等同現況，1.2 為平衡點。
+- **「字太小」要先分清是 bug 還是忠實**：美股 s1 內文 sz=1600(16pt)、個股訊息 bullets 24pt 都是忠實照來源；看起來小是原稿本來字小留白多。忠實＝跟 PPT 一致；若硬放大填滿框反而偏離 PPT。回報「字小」時先量來源 sz 再決定動不動。
