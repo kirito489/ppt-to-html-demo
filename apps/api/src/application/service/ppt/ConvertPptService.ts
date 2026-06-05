@@ -197,11 +197,13 @@ export class ConvertPptService implements ConvertPptUseCase {
   }
 
   private async readTitle(zip: JSZip, filename: string): Promise<string> {
+    const stem = filename.replace(/\.pptx$/i, '');
     const core = await this.readXml(zip, 'docProps/core.xml');
     const props = core?.['cp:coreProperties'] as XmlNode | undefined;
     const title = textOf(props?.['dc:title']).trim();
-    if (title) return title;
-    return filename.replace(/\.pptx$/i, '');
+    // dc:title 常是 PowerPoint 預設值（「PowerPoint 簡報」等），無意義時改用檔名
+    const isGeneric = /^(powerpoint|presentation|簡報)/i.test(title);
+    return title && !isGeneric ? title : stem;
   }
 
   /** 讀取單一投影片的圖片關係（rId → media 路徑） */
@@ -499,9 +501,11 @@ export class ConvertPptService implements ConvertPptUseCase {
   }
 
   private countAllTextChars(xml: string): number {
-    const matches = xml.match(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g) ?? [];
+    // 只匹配「有內容」的 <a:t>…</a:t>；用 (?:\s[^>]*)? 避免把自閉的 <a:t/>（空 run）
+    // 誤判成開始標籤而吃掉後續 XML，導致字元數爆增、文字還原率被低估
+    const matches = xml.match(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g) ?? [];
     return matches.reduce((sum, m) => {
-      const inner = m.replace(/<a:t[^>]*>/, '').replace(/<\/a:t>$/, '');
+      const inner = m.replace(/<a:t(?:\s[^>]*)?>/, '').replace(/<\/a:t>$/, '');
       return sum + inner.length;
     }, 0);
   }

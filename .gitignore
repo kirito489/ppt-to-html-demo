@@ -58,6 +58,12 @@ tmp/
 temp/
 *.tmp
 
+# PPT 攝取來源/產物（含使用者真實簡報，不入版控；保留資料夾）
+apps/api/storage/incoming/*
+!apps/api/storage/incoming/.gitkeep
+apps/api/storage/processed/*
+!apps/api/storage/processed/.gitkeep
+
 # Code review reports
 pr/
 

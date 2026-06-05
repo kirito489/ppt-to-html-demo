@@ -192,6 +192,18 @@ describe('ConvertPptService', () => {
     expect(result.status).toBe('success');
   });
 
+  it('自閉空文字標籤 <a:t/> 不會灌爆文字還原率', async () => {
+    // 空 run（<a:t/>）在前、正常文字在後；買 bug 的 regex 會把 <a:t/> 當開始標籤吃掉後續 XML
+    const emptyRun = `<p:sp><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1000000" cy="500000"/></a:xfrm></p:spPr><p:txBody><a:p><a:r><a:rPr/><a:t/></a:r></a:p></p:txBody></p:sp>`;
+    const buffer = await buildPptx([
+      { xml: slide(emptyRun + textShape('完整內容')) },
+    ]);
+
+    const result = await service.execute({ buffer, filename: 'demo.pptx' });
+
+    expect(result.accuracy.text).toBe(1);
+  });
+
   it('非 zip 內容拋出 PptParseException', async () => {
     await expect(
       service.execute({ buffer: Buffer.from('not a zip'), filename: 'x.pptx' }),
