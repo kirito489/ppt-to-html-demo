@@ -30,7 +30,7 @@ TBD - created by archiving change ppt-to-html-demo. Update Purpose after archive
 - **THEN** 文字字級 MUST 以 `cqw` 隨容器等比縮放，且文字方塊維持原相對位置（不跑版）
 
 ### Requirement: 文字內容與樣式還原
-系統 SHALL 還原文字框內的段落與文字 run，包含文字內容與常見樣式（粗體、斜體、底線、字級、顏色），並 SHALL 設定字型堆疊（優先使用來源字型如微軟正黑體，fallback 至 Microsoft JhengHei、Noto Sans TC 等）與行距（`<a:lnSpc>`），降低瀏覽器替代字型與原字型行高差異造成文字溢出原框的情形，確保文字內容準確且不被相鄰元素覆蓋。
+系統 SHALL 還原文字框內的段落與文字 run，包含文字內容與常見樣式（粗體、斜體、底線、字級、顏色），並 SHALL 設定字型堆疊（優先使用來源字型如微軟正黑體，fallback 至 Microsoft JhengHei、Noto Sans TC 等）與行距：段落帶 `<a:lnSpc>` 時依來源換算，未帶 `<a:lnSpc>` 時 SHALL 套用接近 PowerPoint 單行間距的預設行高（約 1.2），取代瀏覽器偏鬆的 `normal`，降低替代字型行高差異造成文字溢出原框、覆蓋相鄰元素的情形。
 
 #### Scenario: 還原段落與文字
 - **WHEN** 文字框含多個 `<a:p>` 段落與 `<a:r>/<a:t>` run
@@ -40,9 +40,17 @@ TBD - created by archiving change ppt-to-html-demo. Update Purpose after archive
 - **WHEN** run 帶有 `<a:rPr>` 樣式（如 `b="1"`、`sz`、`<a:srgbClr>`）
 - **THEN** 對應 HTML MUST 反映粗體/字級/顏色等樣式
 
-#### Scenario: 設定字型與行距以抑制溢出
-- **WHEN** 文字框含中文段落（來源字型如微軟正黑體，且段落帶 `<a:lnSpc>` 行距）
-- **THEN** 輸出 HTML 的文字框 MUST 設定對應字型堆疊與行距，使渲染高度貼近原框、不溢出至下方元素
+#### Scenario: 依來源行距
+- **WHEN** 段落帶 `<a:lnSpc>`（spcPct 或 spcPts）
+- **THEN** 輸出該段落 MUST 套用依來源換算的 `line-height`
+
+#### Scenario: 無行距時套預設行高
+- **WHEN** 段落未帶 `<a:lnSpc>`
+- **THEN** 輸出該段落 MUST 套用接近 PowerPoint 單行間距的預設 `line-height`（約 1.2），而非瀏覽器 `normal`
+
+#### Scenario: 設定字型以抑制溢出
+- **WHEN** 文字框含中文段落（來源字型如微軟正黑體）
+- **THEN** 輸出 HTML 的文字框 MUST 設定對應字型堆疊，使渲染高度貼近原框、不溢出至下方元素
 
 ### Requirement: 圖片擷取與內嵌
 系統 SHALL 透過投影片關係檔解析圖片，並以 base64 data URI 內嵌進輸出 HTML，使文章自包含；無法解析或不支援格式時輸出占位框並計為擷取失敗。
