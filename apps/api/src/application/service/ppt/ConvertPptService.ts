@@ -505,9 +505,13 @@ export class ConvertPptService implements ConvertPptUseCase {
     );
 
     if (spTree) {
+      // 取 spTree 內層原始 XML，供 walkShapes 還原跨型別的文件順序（=z 上下層）
+      const spTreeInner =
+        rawXml.match(/<p:spTree[^>]*>([\s\S]*)<\/p:spTree>/)?.[1] ?? '';
       await this.walkShapes(
         zip,
         spTree,
+        spTreeInner,
         rels,
         cx,
         cy,
@@ -549,10 +553,15 @@ export class ConvertPptService implements ConvertPptUseCase {
     return { html, inventory: { index, elements }, accuracy };
   }
 
-  /** 走訪 spTree 的形狀（群組則遞迴） */
+  /**
+   * 走訪容器（spTree／grpSp）的形狀，依「文件順序」渲染以還原 z 上下層。
+   * 後出現的形狀在 DOM 較後 → 疊在先出現者之上，與 PowerPoint 一致。
+   * @param innerXml 容器內層原始 XML，用於重建跨型別兄弟順序
+   */
   private async walkShapes(
     zip: JSZip,
     node: XmlNode,
+    innerXml: string,
     rels: Map<string, string>,
     cx: number,
     cy: number,
@@ -561,7 +570,13 @@ export class ConvertPptService implements ConvertPptUseCase {
     elements: InventoryElement[],
     htmlParts: string[],
   ): Promise<void> {
-    for (const sp of asArray(node['p:sp'] as XmlNode[])) {
+    const sps = asArray(node['p:sp'] as XmlNode[]);
+    const pics = asArray(node['p:pic'] as XmlNode[]);
+    const gfs = asArray(node['p:graphicFrame'] as XmlNode[]);
+    const grps = asArray(node['p:grpSp'] as XmlNode[]);
+    const idx = { sp: 0, pic: 0, graphicFrame: 0, grpSp: 0 };
+
+    const renderSp = (sp: XmlNode): void => {
       const { html, element } = this.convertTextShape(
         sp,
         cx,
@@ -573,8 +588,8 @@ export class ConvertPptService implements ConvertPptUseCase {
         elements.push(element);
         htmlParts.push(html);
       }
-    }
-    for (const pic of asArray(node['p:pic'] as XmlNode[])) {
+    };
+    const renderPic = async (pic: XmlNode): Promise<void> => {
       const { html, element } = await this.convertPicture(
         zip,
         pic,
@@ -584,17 +599,18 @@ export class ConvertPptService implements ConvertPptUseCase {
       );
       elements.push(element);
       htmlParts.push(html);
-    }
-    for (const gf of asArray(node['p:graphicFrame'] as XmlNode[])) {
+    };
+    const renderGf = (gf: XmlNode): void => {
       const { html, element } = this.convertGraphicFrame(gf, cx, cy);
       elements.push(element);
       htmlParts.push(html);
-    }
-    for (const grp of asArray(node['p:grpSp'] as XmlNode[])) {
-      // 群組：best-effort 遞迴（忽略群組變換，子元素以自身座標定位）
+    };
+    // 群組：best-effort 遞迴（忽略群組變換，子元素以自身座標定位），沿用其文件順序
+    const renderGrp = async (grp: XmlNode, grpInner: string): Promise<void> => {
       await this.walkShapes(
         zip,
         grp,
+        grpInner,
         rels,
         cx,
         cy,
@@ -603,7 +619,61 @@ export class ConvertPptService implements ConvertPptUseCase {
         elements,
         htmlParts,
       );
+    };
+
+    for (const child of this.orderedChildren(innerXml)) {
+      if (child.kind === 'sp' && idx.sp < sps.length) renderSp(sps[idx.sp++]);
+      else if (child.kind === 'pic' && idx.pic < pics.length)
+        await renderPic(pics[idx.pic++]);
+      else if (child.kind === 'graphicFrame' && idx.graphicFrame < gfs.length)
+        renderGf(gfs[idx.graphicFrame++]);
+      else if (child.kind === 'grpSp' && idx.grpSp < grps.length)
+        await renderGrp(grps[idx.grpSp++], child.inner ?? '');
+      // cxnSp 無轉換器，略過（仍佔文件順序）
     }
+
+    // 後備：tokenizer 漏掉的元素依陣列剩餘順序補上，確保不丟元素
+    for (; idx.sp < sps.length; idx.sp++) renderSp(sps[idx.sp]);
+    for (; idx.pic < pics.length; idx.pic++) await renderPic(pics[idx.pic]);
+    for (; idx.graphicFrame < gfs.length; idx.graphicFrame++)
+      renderGf(gfs[idx.graphicFrame]);
+    for (; idx.grpSp < grps.length; idx.grpSp++)
+      await renderGrp(grps[idx.grpSp], '');
+  }
+
+  /**
+   * 解析容器直屬子形狀的文件順序；grpSp 另附其內層 XML 供遞迴沿用順序。
+   * 以深度計數排除巢狀群組內的標籤，只取直屬層。
+   */
+  private orderedChildren(innerXml: string): Array<{
+    kind: 'sp' | 'pic' | 'graphicFrame' | 'grpSp' | 'cxnSp';
+    inner?: string;
+  }> {
+    const re = /<p:(sp|pic|graphicFrame|grpSp|cxnSp)(?:\s[^>]*)?>|<\/p:grpSp>/g;
+    const out: Array<{
+      kind: 'sp' | 'pic' | 'graphicFrame' | 'grpSp' | 'cxnSp';
+      inner?: string;
+    }> = [];
+    let depth = 0;
+    let grpStart = -1;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(innerXml))) {
+      if (m[0] === '</p:grpSp>') {
+        depth--;
+        if (depth === 0 && grpStart >= 0) {
+          out.push({ kind: 'grpSp', inner: innerXml.slice(grpStart, m.index) });
+          grpStart = -1;
+        }
+        continue;
+      }
+      const kind = m[1] as 'sp' | 'pic' | 'graphicFrame' | 'grpSp' | 'cxnSp';
+      if (depth === 0) {
+        if (kind === 'grpSp') grpStart = re.lastIndex;
+        else out.push({ kind });
+      }
+      if (kind === 'grpSp') depth++;
+    }
+    return out;
   }
 
   private convertTextShape(
