@@ -224,6 +224,10 @@ paths:
     post:
       $ref: './articles/upload.yaml'
 
+  /articles/pending:
+    get:
+      $ref: './articles/pending.yaml'
+
   /articles/{id}:
     get:
       $ref: './articles/get.yaml'

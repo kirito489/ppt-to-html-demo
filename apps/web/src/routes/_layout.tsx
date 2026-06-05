@@ -19,7 +19,6 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { tokenStorage } from '@/lib/storage'
-import { useCurrentMember } from '@/lib/use-current-member'
 import { NAV_ITEMS, type NavItem } from './_nav-items'
 
 const UNGROUPED_KEY = '__ungrouped__'
@@ -52,7 +51,6 @@ const groupNavItems = (
 export const Layout = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { permissions, roleCode } = useCurrentMember()
 
   const handleLogout = () => {
     tokenStorage.clear()
@@ -60,28 +58,7 @@ export const Layout = () => {
     navigate('/login', { replace: true })
   }
 
-  // 過濾邏輯：requiredPermission + requiredRoleCode 兩個門檻都要通過
-  const visibleNavItems = useMemo(
-    () =>
-      NAV_ITEMS.filter((item) => {
-        if (
-          item.requiredPermission &&
-          !permissions.includes(item.requiredPermission)
-        ) {
-          return false
-        }
-        if (item.requiredRoleCode && item.requiredRoleCode !== roleCode) {
-          return false
-        }
-        return true
-      }),
-    [permissions, roleCode],
-  )
-
-  const groupedNavItems = useMemo(
-    () => groupNavItems(visibleNavItems),
-    [visibleNavItems],
-  )
+  const groupedNavItems = useMemo(() => groupNavItems(NAV_ITEMS), [])
 
   return (
     <SidebarProvider>

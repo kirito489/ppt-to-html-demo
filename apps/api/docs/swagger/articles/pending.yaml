@@ -1,0 +1,35 @@
+tags: [Articles]
+summary: 待轉換來源檔列表
+description: 列出公槽（來源資料夾）中已上傳、尚未轉換的 `.pptx` 檔。
+
+security:
+  - bearerAuth: []
+
+responses:
+  '200':
+    description: 查詢成功
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [success, data, timestamp]
+          properties:
+            success: { type: boolean, example: true }
+            data:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      name:
+                        type: string
+                        description: 待轉換的來源檔名
+            timestamp: { type: string, format: date-time }
+  '401':
+    $ref: '../openapi.yaml#/components/responses/NoToken'
+  '500':
+    $ref: '../openapi.yaml#/components/responses/InternalServerError'

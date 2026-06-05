@@ -13,14 +13,14 @@
 
 ## 3. 後端：待轉換 API + /me 名稱
 
-- [ ] 3.1 `ListPendingSourcesUseCase` + service（用 `SOURCE_STORAGE_PORT.list`）；`PptFacade.listPending`
-- [ ] 3.2 `ArticleController` 新增 `GET /articles/pending`（JwtAuthGuard）回 `{ items: [{ name }] }`
-- [ ] 3.3 `/me`：`LoadMemberContextPort` 補 `name`、`ProfileController` 回 `{ id, email, name, roleCode, permissionCodes }`
-- [ ] 3.4 Swagger：新增 `articles/pending.yaml`、更新 `profile/get-me.yaml`（加 name）；bundle + api-client generate
+- [x] 3.1 `ListPendingSourcesUseCase` + service（用 `SOURCE_STORAGE_PORT.list`）；`PptFacade.listPending`
+- [x] 3.2 `ArticleController` 新增 `GET /articles/pending`（JwtAuthGuard）回 `{ items: [{ name }] }`
+- [x] 3.3 `/me`：`LoadMemberContextPort` 補 `name`、`ProfileController` 回 `{ id, email, name, roleCode, permissionCodes }`
+- [x] 3.4 Swagger：新增 `articles/pending.yaml`、更新 `profile/get-me.yaml`（加 name）；bundle + api-client generate
 
 ## 4. 前端：個人資料 + 待轉換清單
 
-- [ ] 4.1 首頁個人資料：顯示「名稱」（`/me` 的 name）、移除「角色」列
+- [x] 4.1 首頁個人資料：顯示「名稱」（`/me` 的 name）、移除「角色」列
 - [ ] 4.2 文章列表頁：上方「待轉換（N）」區塊（查 `/articles/pending`），列檔名 + 引導按「立即抓取轉換」；觸發/上傳後重整
 
 ## 5. 前端：簡報模式翻頁

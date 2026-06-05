@@ -64,6 +64,13 @@ export class ArticleController {
     return this.facade.upload(file.buffer, name);
   }
 
+  /** 公槽中待轉換（已上傳未轉換）的來源檔（須在 :id 之前宣告） */
+  @Get('articles/pending')
+  async listPending() {
+    const items = await this.facade.listPending();
+    return { items };
+  }
+
   @Get('articles/:id')
   getArticle(@Param('id', ParseUUIDPipe) id: string) {
     return this.facade.getArticle(id);

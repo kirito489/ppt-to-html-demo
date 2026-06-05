@@ -138,6 +138,7 @@ describe('JwtAuthGuard', () => {
     mockLoadMemberContext.loadMemberContext.mockResolvedValue({
       id: TEST_UUID,
       email: 'u@e.com',
+      name: '測試使用者',
       roleName: 'admin',
       roleCode: 'SUPERADMIN',
       permissions: ['member.view'],

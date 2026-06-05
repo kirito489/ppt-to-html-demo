@@ -457,8 +457,7 @@ export interface paths {
         };
         /**
          * 查詢個人帳號資料
-         * @description 取得目前登入帳號的個人資料。
-         *     無需任何額外 permission，持有有效 JWT 即可呼叫。
+         * @description 取得目前登入帳號的基本資料（持有有效 JWT 即可）。
          */
         get: {
             parameters: {
@@ -480,80 +479,22 @@ export interface paths {
                          *       "success": true,
                          *       "data": {
                          *         "id": "11111111-1111-4111-8111-111111111111",
-                         *         "email": "user@example.com",
-                         *         "member": "王小明",
-                         *         "roleId": "22222222-2222-4222-8222-222222222222",
-                         *         "roleName": "管理者",
-                         *         "roleCode": "SUPERADMIN",
-                         *         "status": true,
-                         *         "isDefault": false,
-                         *         "lastLoginAt": "2026-04-30T10:00:00.000Z",
-                         *         "createdAt": "2026-01-01T00:00:00.000Z",
-                         *         "updatedAt": "2026-04-30T10:00:00.000Z",
-                         *         "permissionCodes": [
-                         *           "BACKEND:ACCOUNT:VIEW",
-                         *           "BACKEND:ACCOUNT:EDIT"
-                         *         ]
+                         *         "email": "admin@test.com",
+                         *         "name": "管理員"
                          *       },
-                         *       "timestamp": "2026-04-30T10:00:00.000Z"
+                         *       "timestamp": "2026-06-05T10:00:00.000Z"
                          *     }
                          */
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @description 帳號詳細 */
                             data: {
-                                /**
-                                 * Format: uuid
-                                 * @description 帳號 ID
-                                 */
-                                id?: string;
-                                /**
-                                 * Format: email
-                                 * @description Email
-                                 */
-                                email?: string;
-                                /** @description 名稱 */
-                                member?: string;
-                                /**
-                                 * Format: uuid
-                                 * @description 所屬角色 ID
-                                 */
-                                roleId?: string;
-                                /** @description 角色名稱 */
-                                roleName?: string;
-                                /**
-                                 * @description 角色代碼（如 SUPERADMIN），給前端 sidebar 粗粒度 role gate 用；context 取不到時為 null
-                                 * @example SUPERADMIN
-                                 */
-                                roleCode?: string | null;
-                                /** @description 啟用狀態 */
-                                status?: boolean;
-                                /** @description 預設帳號旗標 */
-                                isDefault?: boolean;
-                                /**
-                                 * Format: date-time
-                                 * @description 最後登入時間（UTC，可 null）
-                                 */
-                                lastLoginAt?: string | null;
-                                /**
-                                 * Format: date-time
-                                 * @description 建立時間（UTC）
-                                 */
-                                createdAt?: string;
-                                /**
-                                 * Format: date-time
-                                 * @description 更新時間（UTC）
-                                 */
-                                updatedAt?: string;
-                                /**
-                                 * @description 該帳號目前持有的權限代碼（即時查 DB，非 JWT 快取）
-                                 * @example [
-                                 *       "BACKEND:ACCOUNT:VIEW",
-                                 *       "BACKEND:ACCOUNT:EDIT"
-                                 *     ]
-                                 */
-                                permissionCodes?: string[];
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: email */
+                                email: string;
+                                /** @description 會員名稱（顯示用） */
+                                name: string;
                             };
                             /** Format: date-time */
                             timestamp: string;
@@ -793,6 +734,58 @@ export interface paths {
                 500: components["responses"]["InternalServerError"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/articles/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 待轉換來源檔列表
+         * @description 列出公槽（來源資料夾）中已上傳、尚未轉換的 `.pptx` 檔。
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 查詢成功 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            data: {
+                                items: {
+                                    /** @description 待轉換的來源檔名 */
+                                    name: string;
+                                }[];
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                401: components["responses"]["NoToken"];
+                500: components["responses"]["InternalServerError"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
