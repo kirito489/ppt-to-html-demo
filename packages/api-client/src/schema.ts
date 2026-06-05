@@ -448,625 +448,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/forgot-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 忘記密碼
-         * @description 傳送密碼重設信件。無論 Email 是否存在，回應皆相同（防止帳號列舉）。
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * Format: email
-                         * @description 電子郵件
-                         * @example test@example.com
-                         */
-                        email: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description 請求已接受 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": true,
-                         *       "data": {
-                         *         "message": "若此信箱已註冊，您將收到密碼重設信件"
-                         *       },
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** @description 顯示給使用者的提示訊息 */
-                                message: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                400: components["responses"]["BadRequest"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/reset-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 重設密碼
-         * @description 使用密碼重設 Token 設定新密碼。Token 為單次使用，過期後失效。
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * @description 密碼重設 Token（來自信件連結）
-                         * @example abc123def456
-                         */
-                        token: string;
-                        /**
-                         * Format: password
-                         * @description 新密碼
-                         * @example NewPassword123!
-                         */
-                        newPassword: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description 密碼重設成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": true,
-                         *       "data": {
-                         *         "message": "密碼已成功重設"
-                         *       },
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** @description 顯示給使用者的提示訊息 */
-                                message: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                400: components["responses"]["BadRequest"];
-                /** @description Token 無效或已過期 */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "密碼重設連結無效或已過期",
-                         *       "code": "INVALID_RESET_TOKEN",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 角色列表
-         * @description 分頁取得角色列表，支援名稱模糊搜尋與 status 啟用狀態過濾。
-         *     需要 `BACKEND:ROLE:VIEW` 權限。需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                    limit?: number;
-                    /** @description 以名稱模糊搜尋 */
-                    name?: string;
-                    /** @description 啟用狀態過濾；省略則不過濾（同時回啟用 + 停用） */
-                    status?: boolean;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                list?: {
-                                    /** Format: uuid */
-                                    id?: string;
-                                    /** @example 管理者 */
-                                    name?: string;
-                                    status?: boolean;
-                                    /** @description 預設角色（true 時不可刪除/編輯） */
-                                    isDefault?: boolean;
-                                    /** @description 使用此角色的帳號數 */
-                                    memberCount?: number;
-                                    /** Format: date-time */
-                                    createdAt?: string;
-                                    /** Format: date-time */
-                                    updatedAt?: string;
-                                }[];
-                                meta?: {
-                                    page?: number;
-                                    limit?: number;
-                                    total?: number;
-                                    totalPages?: number;
-                                };
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        /**
-         * 建立角色
-         * @description 建立新角色並指派 permissions。名稱不可重複，permissionCodes 須存在於 DB。
-         *     EDIT permission 必須搭配對應 VIEW。需要 `BACKEND:ROLE:EDIT` 權限。
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @example 審核人員 */
-                        name: string;
-                        /**
-                         * @default []
-                         * @example [
-                         *       "BACKEND:ACCOUNT:VIEW"
-                         *     ]
-                         */
-                        permissionCodes?: string[];
-                    };
-                };
-            };
-            responses: {
-                /** @description 建立成功 */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success?: boolean;
-                            data?: {
-                                /** Format: uuid */
-                                id?: string;
-                            };
-                            /** Format: date-time */
-                            timestamp?: string;
-                        };
-                    };
-                };
-                /** @description 參數錯誤或 permission code 格式/組合不合法 */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 角色名稱已存在 */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色名稱已存在：審核人員",
-                         *       "code": "DUPLICATE_ROLE_NAME",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 可用 Permission 清單
-         * @description 取得系統中所有啟用的 permission（status=true），供角色建立/編輯 Modal 使用。
-         *     需要 `BACKEND:ROLE:VIEW` 權限。
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** @example BACKEND:ACCOUNT:VIEW */
-                                permissionCode?: string;
-                                /** @example 帳號檢視 */
-                                name?: string;
-                                /** @example BACKEND */
-                                platform?: string;
-                                /** @example ACCOUNT */
-                                module?: string;
-                                /** @example VIEW */
-                                action?: string;
-                            }[];
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 角色詳情
-         * @description 取得單一角色詳情，包含已指派的 permissionCodes。需要 `BACKEND:ROLE:VIEW` 權限。
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** Format: uuid */
-                                id?: string;
-                                name?: string;
-                                status?: boolean;
-                                isDefault?: boolean;
-                                /**
-                                 * @example [
-                                 *       "BACKEND:ROLE:VIEW",
-                                 *       "BACKEND:ROLE:EDIT"
-                                 *     ]
-                                 */
-                                permissionCodes?: string[];
-                                /** Format: date-time */
-                                createdAt?: string;
-                                /** Format: date-time */
-                                updatedAt?: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到角色 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色不存在",
-                         *       "code": "ROLE_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        /**
-         * 刪除角色
-         * @description 軟刪除角色（name 加 suffix 釋放唯一約束）。預設角色不可刪除；仍有帳號使用時不可刪除。
-         *     需要 `BACKEND:ROLE:EDIT` 權限。
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 刪除成功（無 body） */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description 預設角色不可刪除 */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "預設角色不可刪除",
-                         *       "code": "DEFAULT_ROLE_NOT_DELETABLE",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到角色 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色不存在",
-                         *       "code": "ROLE_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description 角色仍有帳號使用 */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "該角色仍有 3 個帳號使用，無法刪除",
-                         *       "code": "ROLE_HAS_MEMBERS",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        options?: never;
-        head?: never;
-        /**
-         * 更新角色
-         * @description 更新角色名稱、permissions 或啟用狀態。三者均為選填（省略表示不變更）。
-         *     permissionCodes 傳空陣列 `[]` 表示清空所有權限。預設角色不可編輯。
-         *     需要 `BACKEND:ROLE:EDIT` 權限。
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        name?: string;
-                        /** @description 省略表示不變更；傳空陣列表示清空所有權限 */
-                        permissionCodes?: string[];
-                        /** @description 省略表示不變更；傳 true/false 切換角色啟用狀態 */
-                        status?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description 更新成功（無 body） */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description 參數錯誤、預設角色不可編輯或 permission 組合不合法 */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到角色 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色不存在",
-                         *       "code": "ROLE_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description 角色名稱已存在 */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色名稱已存在：審核人員",
-                         *       "code": "DUPLICATE_ROLE_NAME",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        trace?: never;
-    };
     "/me": {
         parameters: {
             query?: never;
@@ -1191,7 +572,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/members": {
+    "/articles": {
         parameters: {
             query?: never;
             header?: never;
@@ -1199,23 +580,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 帳號列表
-         * @description 分頁取得帳號列表，支援 name / email 模糊搜尋與 status 啟用狀態過濾。
-         *     需要 `BACKEND:ACCOUNT:VIEW` 權限。需要 JWT Bearer Token 認證。
+         * 轉換文章列表（分頁）
+         * @description 取得由 PPT 轉換而來的文章清單（精簡欄位），依建立時間倒序。
          */
         get: {
             parameters: {
                 query?: {
                     /** @description 頁碼 */
                     page?: number;
-                    /** @description 每頁筆數（未指定用 env DEFAULT_PAGE_LIMIT） */
+                    /** @description 每頁筆數 */
                     limit?: number;
-                    /** @description 以名稱模糊搜尋 */
-                    name?: string;
-                    /** @description 以 Email 模糊搜尋 */
-                    email?: string;
-                    /** @description 啟用狀態過濾；省略則不過濾（同時回啟用 + 停用） */
-                    status?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -1233,686 +607,30 @@ export interface paths {
                             /** @example true */
                             success: boolean;
                             data: {
-                                /** @description 帳號清單 */
-                                list?: {
-                                    /**
-                                     * Format: uuid
-                                     * @description 帳號 ID
-                                     */
-                                    id?: string;
-                                    /**
-                                     * Format: email
-                                     * @description Email
-                                     * @example user@example.com
-                                     */
-                                    email?: string;
-                                    /**
-                                     * @description 名稱
-                                     * @example 王小明
-                                     */
-                                    member?: string;
-                                    /**
-                                     * Format: uuid
-                                     * @description 所屬角色 ID
-                                     */
-                                    roleId?: string;
-                                    /**
-                                     * @description 角色名稱
-                                     * @example 管理者
-                                     */
-                                    roleName?: string;
-                                    /**
-                                     * @description 啟用狀態
-                                     * @example true
-                                     */
-                                    status?: boolean;
-                                    /**
-                                     * @description 預設帳號旗標（true 時不可刪除）
-                                     * @example false
-                                     */
-                                    isDefault?: boolean;
-                                    /**
-                                     * Format: date-time
-                                     * @description 建立時間（UTC）
-                                     */
-                                    createdAt?: string;
-                                    /**
-                                     * Format: date-time
-                                     * @description 最後更新時間（UTC）
-                                     */
-                                    updatedAt?: string;
-                                    /**
-                                     * Format: date-time
-                                     * @description 最後登入時間（UTC，可 null）
-                                     */
-                                    lastLoginAt?: string | null;
-                                }[];
-                                /** @description 分頁資訊 */
-                                meta?: {
-                                    /**
-                                     * @description 目前頁碼
-                                     * @example 1
-                                     */
-                                    page?: number;
-                                    /**
-                                     * @description 每頁筆數
-                                     * @example 10
-                                     */
-                                    limit?: number;
-                                    /**
-                                     * @description 總筆數
-                                     * @example 42
-                                     */
-                                    total?: number;
-                                    /**
-                                     * @description 總頁數
-                                     * @example 5
-                                     */
-                                    totalPages?: number;
-                                };
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        /**
-         * 建立帳號
-         * @description 後台建立新帳號。Email 不可重複，roleId 須存在於 roles 表。
-         *     需要 `BACKEND:ACCOUNT:EDIT` 權限。
-         *     需要 JWT Bearer Token 認證。
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * Format: email
-                         * @description Email（最多 255 字元，不可重複）
-                         * @example user@example.com
-                         */
-                        email: string;
-                        /**
-                         * @description 名稱（最多 100 字元）
-                         * @example 王小明
-                         */
-                        member: string;
-                        /**
-                         * @description 密碼（8-30 字元，英數字混合）
-                         * @example Passw0rd!
-                         */
-                        password: string;
-                        /**
-                         * Format: uuid
-                         * @description 指派角色 ID
-                         */
-                        roleId: string;
-                        /**
-                         * @description 初始啟用狀態（預設：true）
-                         * @default true
-                         */
-                        status?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description 建立成功 */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /**
-                                 * Format: uuid
-                                 * @description 新建帳號 ID
-                                 */
-                                id?: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                400: components["responses"]["BadRequest"];
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description roleId 不存在 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色不存在",
-                         *       "code": "ROLE_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Email 已被使用 */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "Email 已被註冊",
-                         *       "code": "EMAIL_ALREADY_EXISTS",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/members/role/options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 角色下拉選項（分頁）
-         * @description 帳號建立/編輯 Modal 的「角色」Combobox 用，分頁回傳啟用中的角色（status=true 且未軟刪除）。
-         *     支援名稱模糊搜尋；每筆含 isDefault 旗標（前端顯示但 disabled，不可由一般帳號指派）。
-         *     需要 `BACKEND:ACCOUNT:VIEW` 權限。
-         *     需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description 頁碼，預設 1 */
-                    page?: number;
-                    /** @description 每頁筆數，預設 20、上限 100 */
-                    limit?: number;
-                    /** @description 名稱模糊搜尋；trim 後為空字串視為未提供 */
-                    search?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** @description 啟用中的角色清單 */
-                                list: {
-                                    /**
-                                     * Format: uuid
-                                     * @description 角色 ID
-                                     */
-                                    id?: string;
-                                    /**
-                                     * @description 角色名稱（顯示用）
-                                     * @example 一般使用者
-                                     */
-                                    name?: string;
-                                    /**
-                                     * @description 是否可被一般帳號指派。false 時前端 select 仍顯示但 disabled（由後端依角色屬性判斷）
-                                     * @example true
-                                     */
-                                    isAssignable?: boolean;
-                                }[];
-                                meta: {
-                                    /** @example 1 */
-                                    page?: number;
-                                    /** @example 20 */
-                                    limit?: number;
-                                    /** @example 35 */
-                                    total?: number;
-                                    /** @example 2 */
-                                    totalPages?: number;
-                                };
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/members/role/options/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 單筆角色選項（fallback）
-         * @description 帳號編輯 Modal 的「角色」Combobox 在「現有 roleId 不在分頁第一頁」時 fallback 取用。
-         *     與 `GET /api/roles/:id` 區隔：本 endpoint 給「會員」場景，只回 `{ id, name, isDefault }`，
-         *     且只需要 `BACKEND:ACCOUNT:VIEW` 權限，方便沒有 `BACKEND:ROLE:VIEW` 的會員管理者使用。
-         *     軟刪除或 status=false 的角色一律回 404。
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** Format: uuid */
-                                id?: string;
-                                /** @example 一般使用者 */
-                                name?: string;
-                                /**
-                                 * @description 是否可被一般帳號指派；false 時前端 select 仍顯示但 disabled（由後端依角色屬性判斷）
-                                 * @example true
-                                 */
-                                isAssignable?: boolean;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到角色或角色已停用 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "角色不存在",
-                         *       "code": "ROLE_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/members/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 帳號詳情
-         * @description 取得單一帳號詳情（供編輯 Modal 帶入資料）。
-         *     需要 `BACKEND:ACCOUNT:VIEW` 權限。
-         *     需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description 帳號 ID */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            /** @description 帳號詳細 */
-                            data: {
-                                /**
-                                 * Format: uuid
-                                 * @description 帳號 ID
-                                 */
-                                id?: string;
-                                /**
-                                 * Format: email
-                                 * @description Email
-                                 */
-                                email?: string;
-                                /** @description 名稱 */
-                                member?: string;
-                                /**
-                                 * Format: uuid
-                                 * @description 所屬角色 ID
-                                 */
-                                roleId?: string;
-                                /** @description 角色名稱 */
-                                roleName?: string;
-                                /** @description 啟用狀態 */
-                                status?: boolean;
-                                /** @description 預設帳號旗標（true 時不可刪除） */
-                                isDefault?: boolean;
-                                /**
-                                 * Format: date-time
-                                 * @description 建立時間（UTC）
-                                 */
-                                createdAt?: string;
-                                /**
-                                 * Format: date-time
-                                 * @description 更新時間（UTC）
-                                 */
-                                updatedAt?: string;
-                                /**
-                                 * Format: date-time
-                                 * @description 最後登入時間（UTC，可 null）
-                                 */
-                                lastLoginAt?: string | null;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到帳號 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "找不到帳號",
-                         *       "code": "MEMBER_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        /**
-         * 刪除帳號
-         * @description 帳號軟刪除（logical delete）。資料列保留，信箱改為 `原值_時間戳記` 以釋放唯一約束。
-         *     需要 `BACKEND:ACCOUNT:EDIT` 權限。
-         *     需要 JWT Bearer Token 認證。
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description 帳號 ID */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 刪除成功（無 body） */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description 不可刪除自己或預設帳號不可刪除 */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到帳號 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "找不到帳號",
-                         *       "code": "MEMBER_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        options?: never;
-        head?: never;
-        /**
-         * 更新帳號
-         * @description 更新帳號（PATCH 真 partial）：所有欄位皆選填，僅送出有變動的欄位即可，
-         *     避免為了改一欄而回傳整列被併發寫入互相覆蓋。
-         *     password 空白 / 未指定表示不改。
-         *     需要 `BACKEND:ACCOUNT:EDIT` 權限。
-         *     需要 JWT Bearer Token 認證。
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description 帳號 ID */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * Format: email
-                         * @description Email
-                         */
-                        email?: string;
-                        /** @description 名稱 */
-                        member?: string;
-                        /** @description 密碼（空白 / 未指定表示不改） */
-                        password?: string;
-                        /**
-                         * Format: uuid
-                         * @description 所屬角色 ID
-                         */
-                        roleId?: string;
-                        /** @description 啟用狀態 */
-                        status?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description 更新成功（無 body） */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description 參數錯誤、嘗試停用自己或預設帳號不可編輯 */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到帳號或 roleId */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Email 已被使用 */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "Email 已被註冊",
-                         *       "code": "EMAIL_ALREADY_EXISTS",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        trace?: never;
-    };
-    "/security/ip-whitelist": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查詢 IP 白名單
-         * @description 分頁取得 IP 白名單記錄；支援 IP 模糊搜尋。
-         *     需要 `SUPERADMIN` 角色（粗粒度 role gate，非細粒度 permission）。
-         *     需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description 頁碼 */
-                    page?: number;
-                    /** @description 每頁筆數（未指定用 env DEFAULT_PAGE_LIMIT） */
-                    limit?: number;
-                    /** @description IP 模糊搜尋（contains）；trim 後為空字串視為未提供 */
-                    search?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** @description IP 白名單清單 */
-                                list: {
+                                items: {
                                     /** Format: uuid */
-                                    id?: string;
-                                    ipAddress?: string;
-                                    description?: string | null;
-                                    /** Format: uuid */
-                                    createdBy?: string | null;
+                                    id: string;
+                                    /** @description 文章標題 */
+                                    title: string;
+                                    /** @description 來源 PPT 檔名 */
+                                    sourceFilename: string;
+                                    /** @description 投影片頁數 */
+                                    slideCount: number;
+                                    /** @description 整體準確率（0~1） */
+                                    accuracyOverall: number;
+                                    /**
+                                     * @description 轉換狀態
+                                     * @enum {string}
+                                     */
+                                    status: "success" | "partial" | "failed";
                                     /** Format: date-time */
-                                    createdAt?: string;
+                                    createdAt: string;
                                 }[];
                                 meta: {
-                                    /** @example 1 */
-                                    page?: number;
-                                    /** @example 10 */
-                                    limit?: number;
-                                    /** @example 42 */
-                                    total?: number;
-                                    /** @example 5 */
-                                    totalPages?: number;
+                                    page: number;
+                                    limit: number;
+                                    total: number;
+                                    totalPages: number;
                                 };
                             };
                             /** Format: date-time */
@@ -1921,542 +639,18 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
                 500: components["responses"]["InternalServerError"];
             };
         };
         put?: never;
-        /**
-         * 新增 IP 至白名單
-         * @description 將指定 IP 加入白名單。IP 已存在時會 upsert 更新 description / createdBy。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * @description IP 位址
-                         * @example 192.168.1.1
-                         */
-                        ip: string;
-                        /**
-                         * @description 備註說明
-                         * @example 辦公室 IP
-                         */
-                        description?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description 新增成功 */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": true,
-                         *       "data": {
-                         *         "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-                         *       },
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /**
-                                 * Format: uuid
-                                 * @description 新建（或既有）IP 紀錄的 uuid
-                                 */
-                                id: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                400: components["responses"]["BadRequest"];
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/security/ip-whitelist/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查詢單筆 IP 白名單
-         * @description 取單筆 IP 白名單記錄，給編輯 dialog 帶初值用。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** Format: uuid */
-                                id?: string;
-                                ipAddress?: string;
-                                description?: string | null;
-                                /** Format: uuid */
-                                createdBy?: string | null;
-                                /** Format: date-time */
-                                createdAt?: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到 IP 名單紀錄 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "找不到該 IP 名單紀錄",
-                         *       "code": "IP_LIST_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        /**
-         * 移除 IP 白名單
-         * @description 將指定紀錄從白名單移除（硬刪除）。記錄不存在時靜默通過（仍回 204）。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description 要移除的紀錄 id */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 移除成功（無回應內容）；記錄不存在時亦回 204 */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        options?: never;
-        head?: never;
-        /**
-         * 更新 IP 白名單
-         * @description 更新指定 IP 白名單記錄的可變欄位（目前僅 description）。
-         *     ipAddress 不可變（要改 IP 則刪除重建）。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * @description 備註說明；省略表示不變
-                         * @example 新辦公室 IP
-                         */
-                        description?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description 更新成功（無 body） */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                400: components["responses"]["BadRequest"];
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到 IP 名單紀錄 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "找不到該 IP 名單紀錄",
-                         *       "code": "IP_LIST_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        trace?: never;
-    };
-    "/security/ip-blacklist": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查詢 IP 黑名單
-         * @description 分頁取得 IP 黑名單記錄；支援 IP 模糊搜尋。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                    limit?: number;
-                    /** @description IP 模糊搜尋（contains） */
-                    search?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                list: {
-                                    /** Format: uuid */
-                                    id?: string;
-                                    ipAddress?: string;
-                                    reason?: string | null;
-                                    isAutoBlock?: boolean;
-                                    /** Format: uuid */
-                                    createdBy?: string | null;
-                                    /** Format: date-time */
-                                    createdAt?: string;
-                                }[];
-                                meta: {
-                                    page?: number;
-                                    limit?: number;
-                                    total?: number;
-                                    totalPages?: number;
-                                };
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        /**
-         * 新增 IP 至黑名單
-         * @description 將指定 IP 加入黑名單。IP 已存在時會 upsert 更新 reason / createdBy / isAutoBlock=false。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * @description IP 位址
-                         * @example 10.0.0.1
-                         */
-                        ip: string;
-                        /**
-                         * @description 封鎖原因
-                         * @example 異常登入嘗試
-                         */
-                        reason?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description 新增成功 */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": true,
-                         *       "data": {
-                         *         "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-                         *       },
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /**
-                                 * Format: uuid
-                                 * @description 新建（或既有）IP 紀錄的 uuid
-                                 */
-                                id: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                400: components["responses"]["BadRequest"];
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/security/ip-blacklist/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查詢單筆 IP 黑名單
-         * @description 取單筆 IP 黑名單記錄，給編輯 dialog 帶初值用。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 查詢成功 */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example true */
-                            success: boolean;
-                            data: {
-                                /** Format: uuid */
-                                id?: string;
-                                ipAddress?: string;
-                                reason?: string | null;
-                                isAutoBlock?: boolean;
-                                /** Format: uuid */
-                                createdBy?: string | null;
-                                /** Format: date-time */
-                                createdAt?: string;
-                            };
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到 IP 名單紀錄 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "找不到該 IP 名單紀錄",
-                         *       "code": "IP_LIST_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        put?: never;
-        post?: never;
-        /**
-         * 移除 IP 黑名單
-         * @description 將指定紀錄從黑名單移除（硬刪除）。記錄不存在時靜默通過（仍回 204）。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description 要移除的紀錄 id */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description 移除成功（無回應內容）；記錄不存在時亦回 204 */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        options?: never;
-        head?: never;
-        /**
-         * 更新 IP 黑名單
-         * @description 更新指定 IP 黑名單記錄的可變欄位（目前僅 reason）。
-         *     ipAddress / isAutoBlock 不可變。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * @description 封鎖原因；省略表示不變
-                         * @example 持續嘗試暴力破解
-                         */
-                        reason?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description 更新成功（無 body） */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                400: components["responses"]["BadRequest"];
-                401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到 IP 名單紀錄 */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "找不到該 IP 名單紀錄",
-                         *       "code": "IP_LIST_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                500: components["responses"]["InternalServerError"];
-            };
-        };
-        trace?: never;
-    };
-    "/security/unlock-account": {
+    "/articles/ingest": {
         parameters: {
             query?: never;
             header?: never;
@@ -2466,9 +660,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 解鎖帳號
-         * @description 解除因登入失敗次數超過閾值而被鎖定的帳號。
-         *     需要 `SUPERADMIN` 角色。需要 JWT Bearer Token 認證。
+         * 手動觸發一次攝取
+         * @description 立即掃描來源資料夾（模擬公槽）、轉換所有 .pptx、存檔並依策略處置來源檔，
+         *     回傳本批次結果摘要。demo 方便用，正式由排程自動執行。
          */
         post: {
             parameters: {
@@ -2477,30 +671,143 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /**
-                         * Format: email
-                         * @description 要解鎖的帳號 Email
-                         * @example user@example.com
-                         */
-                        email: string;
-                    };
-                };
-            };
+            requestBody?: never;
             responses: {
-                /** @description 解鎖成功（無 body） */
-                204: {
+                /** @description 攝取完成 */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                trigger: "scheduled" | "manual";
+                                /** Format: date-time */
+                                startedAt: string;
+                                /** Format: date-time */
+                                finishedAt: string | null;
+                                filesScanned: number;
+                                filesConverted: number;
+                                filesFailed: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                detail: {
+                                    filename: string;
+                                    /** @enum {string} */
+                                    status: "success" | "failed";
+                                    /** Format: uuid */
+                                    articleId?: string | null;
+                                    accuracyOverall?: number | null;
+                                    error?: string | null;
+                                }[];
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
                 };
-                400: components["responses"]["BadRequest"];
                 401: components["responses"]["NoToken"];
-                403: components["responses"]["Forbidden"];
-                /** @description 找不到該 email 對應的帳號 */
+                500: components["responses"]["InternalServerError"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/articles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 取得單篇轉換文章
+         * @description 取得單篇文章完整內容：不跑版 HTML、分類準確率（含每頁明細）、
+         *     以及供「來源元素對照」面板使用的逐頁元素清單。
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description 文章 ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 查詢成功 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                sourceFilename: string;
+                                /** @description 不跑版的完整 HTML（多頁堆疊，圖片以 data URI 內嵌） */
+                                html: string;
+                                slideCount: number;
+                                /** @enum {string} */
+                                status: "success" | "partial" | "failed";
+                                /** Format: date-time */
+                                createdAt: string;
+                                accuracy: {
+                                    /** @description 整體準確率（0~1） */
+                                    overall: number;
+                                    /** @description 文字還原正確率 */
+                                    text: number;
+                                    /** @description 圖片擷取成功率 */
+                                    image: number;
+                                    /** @description 元素涵蓋率 */
+                                    coverage: number;
+                                    /** @description 每頁準確率明細 */
+                                    slides: {
+                                        index: number;
+                                        coverage: number;
+                                        text: number;
+                                        image: number;
+                                        overall: number;
+                                    }[];
+                                };
+                                /** @description 逐頁來源元素清單（對照面板用） */
+                                inventory: {
+                                    index: number;
+                                    elements: {
+                                        /** @enum {string} */
+                                        kind: "text" | "image" | "table" | "unsupported";
+                                        /** @description 是否成功還原到 HTML */
+                                        restored: boolean;
+                                        text?: string | null;
+                                        /** @description 圖片 data URI（成功擷取時） */
+                                        image?: string | null;
+                                        tableCells?: string[][] | null;
+                                        /** @description 未支援元素型別（chart / smartArt 等） */
+                                        unsupportedType?: string | null;
+                                    }[];
+                                }[];
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                401: components["responses"]["NoToken"];
+                /** @description 找不到文章 */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2509,26 +816,9 @@ export interface paths {
                         /**
                          * @example {
                          *       "success": false,
-                         *       "message": "找不到該 email 對應的帳號",
-                         *       "code": "EMAIL_NOT_FOUND",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
-                         *     }
-                         */
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description 帳號未處於鎖定狀態 */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "success": false,
-                         *       "message": "帳號未處於鎖定狀態，無需解鎖",
-                         *       "code": "ACCOUNT_NOT_LOCKED",
-                         *       "timestamp": "2024-01-01T00:00:00.000Z"
+                         *       "message": "找不到指定的文章",
+                         *       "code": "ARTICLE_NOT_FOUND",
+                         *       "timestamp": "2026-06-05T00:00:00.000Z"
                          *     }
                          */
                         "application/json": components["schemas"]["ErrorResponse"];
@@ -2537,6 +827,89 @@ export interface paths {
                 500: components["responses"]["InternalServerError"];
             };
         };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversion-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 轉換批次紀錄列表（分頁）
+         * @description 取得各次攝取批次的觸發方式、起迄時間與成功/失敗檔數，依時間倒序。
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 查詢成功 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            data: {
+                                items: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** @enum {string} */
+                                    trigger: "scheduled" | "manual";
+                                    /** Format: date-time */
+                                    startedAt: string;
+                                    /** Format: date-time */
+                                    finishedAt: string | null;
+                                    filesScanned: number;
+                                    filesConverted: number;
+                                    filesFailed: number;
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                    detail: {
+                                        filename: string;
+                                        /** @enum {string} */
+                                        status: "success" | "failed";
+                                        /** Format: uuid */
+                                        articleId?: string | null;
+                                        accuracyOverall?: number | null;
+                                        error?: string | null;
+                                    }[];
+                                }[];
+                                meta: {
+                                    page: number;
+                                    limit: number;
+                                    total: number;
+                                    totalPages: number;
+                                };
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                401: components["responses"]["NoToken"];
+                500: components["responses"]["InternalServerError"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

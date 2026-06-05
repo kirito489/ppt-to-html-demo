@@ -1,0 +1,78 @@
+tags: [Articles]
+summary: 轉換批次紀錄列表（分頁）
+description: 取得各次攝取批次的觸發方式、起迄時間與成功/失敗檔數，依時間倒序。
+
+security:
+  - bearerAuth: []
+
+parameters:
+  - in: query
+    name: page
+    schema: { type: integer, minimum: 1, default: 1 }
+  - in: query
+    name: limit
+    schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+
+responses:
+  '200':
+    description: 查詢成功
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [success, data, timestamp]
+          properties:
+            success: { type: boolean, example: true }
+            data:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - trigger
+                      - startedAt
+                      - finishedAt
+                      - filesScanned
+                      - filesConverted
+                      - filesFailed
+                      - detail
+                      - createdAt
+                    properties:
+                      id: { type: string, format: uuid }
+                      trigger: { type: string, enum: [scheduled, manual] }
+                      startedAt: { type: string, format: date-time }
+                      finishedAt:
+                        { type: string, format: date-time, nullable: true }
+                      filesScanned: { type: integer }
+                      filesConverted: { type: integer }
+                      filesFailed: { type: integer }
+                      createdAt: { type: string, format: date-time }
+                      detail:
+                        type: array
+                        items:
+                          type: object
+                          required: [filename, status]
+                          properties:
+                            filename: { type: string }
+                            status: { type: string, enum: [success, failed] }
+                            articleId:
+                              { type: string, format: uuid, nullable: true }
+                            accuracyOverall: { type: number, nullable: true }
+                            error: { type: string, nullable: true }
+                meta:
+                  type: object
+                  required: [page, limit, total, totalPages]
+                  properties:
+                    page: { type: integer }
+                    limit: { type: integer }
+                    total: { type: integer }
+                    totalPages: { type: integer }
+            timestamp: { type: string, format: date-time }
+  '401':
+    $ref: '../openapi.yaml#/components/responses/NoToken'
+  '500':
+    $ref: '../openapi.yaml#/components/responses/InternalServerError'

@@ -211,3 +211,19 @@ paths:
   /me:
     get:
       $ref: './profile/get-me.yaml'
+
+  /articles:
+    get:
+      $ref: './articles/list.yaml'
+
+  /articles/ingest:
+    post:
+      $ref: './articles/ingest.yaml'
+
+  /articles/{id}:
+    get:
+      $ref: './articles/get.yaml'
+
+  /conversion-jobs:
+    get:
+      $ref: './articles/jobs.yaml'

@@ -619,3 +619,508 @@ paths:
           $ref: '#/components/responses/NoToken'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /articles:
+    get:
+      tags:
+        - Articles
+      summary: 轉換文章列表（分頁）
+      description: 取得由 PPT 轉換而來的文章清單（精簡欄位），依建立時間倒序。
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 頁碼
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: 每頁筆數
+      responses:
+        '200':
+          description: 查詢成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - timestamp
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required:
+                      - items
+                      - meta
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                            - title
+                            - sourceFilename
+                            - slideCount
+                            - accuracyOverall
+                            - status
+                            - createdAt
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            title:
+                              type: string
+                              description: 文章標題
+                            sourceFilename:
+                              type: string
+                              description: 來源 PPT 檔名
+                            slideCount:
+                              type: integer
+                              description: 投影片頁數
+                            accuracyOverall:
+                              type: number
+                              description: 整體準確率（0~1）
+                            status:
+                              type: string
+                              enum:
+                                - success
+                                - partial
+                                - failed
+                              description: 轉換狀態
+                            createdAt:
+                              type: string
+                              format: date-time
+                      meta:
+                        type: object
+                        required:
+                          - page
+                          - limit
+                          - total
+                          - totalPages
+                        properties:
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+                          total:
+                            type: integer
+                          totalPages:
+                            type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/NoToken'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /articles/ingest:
+    post:
+      tags:
+        - Articles
+      summary: 手動觸發一次攝取
+      description: |
+        立即掃描來源資料夾（模擬公槽）、轉換所有 .pptx、存檔並依策略處置來源檔，
+        回傳本批次結果摘要。demo 方便用，正式由排程自動執行。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 攝取完成
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - timestamp
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required:
+                      - id
+                      - trigger
+                      - startedAt
+                      - finishedAt
+                      - filesScanned
+                      - filesConverted
+                      - filesFailed
+                      - detail
+                      - createdAt
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      trigger:
+                        type: string
+                        enum:
+                          - scheduled
+                          - manual
+                      startedAt:
+                        type: string
+                        format: date-time
+                      finishedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      filesScanned:
+                        type: integer
+                      filesConverted:
+                        type: integer
+                      filesFailed:
+                        type: integer
+                      createdAt:
+                        type: string
+                        format: date-time
+                      detail:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - filename
+                            - status
+                          properties:
+                            filename:
+                              type: string
+                            status:
+                              type: string
+                              enum:
+                                - success
+                                - failed
+                            articleId:
+                              type: string
+                              format: uuid
+                              nullable: true
+                            accuracyOverall:
+                              type: number
+                              nullable: true
+                            error:
+                              type: string
+                              nullable: true
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/NoToken'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  '/articles/{id}':
+    get:
+      tags:
+        - Articles
+      summary: 取得單篇轉換文章
+      description: |
+        取得單篇文章完整內容：不跑版 HTML、分類準確率（含每頁明細）、
+        以及供「來源元素對照」面板使用的逐頁元素清單。
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 文章 ID
+      responses:
+        '200':
+          description: 查詢成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - timestamp
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required:
+                      - id
+                      - title
+                      - sourceFilename
+                      - html
+                      - inventory
+                      - slideCount
+                      - accuracy
+                      - status
+                      - createdAt
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                      sourceFilename:
+                        type: string
+                      html:
+                        type: string
+                        description: 不跑版的完整 HTML（多頁堆疊，圖片以 data URI 內嵌）
+                      slideCount:
+                        type: integer
+                      status:
+                        type: string
+                        enum:
+                          - success
+                          - partial
+                          - failed
+                      createdAt:
+                        type: string
+                        format: date-time
+                      accuracy:
+                        type: object
+                        required:
+                          - overall
+                          - text
+                          - image
+                          - coverage
+                          - slides
+                        properties:
+                          overall:
+                            type: number
+                            description: 整體準確率（0~1）
+                          text:
+                            type: number
+                            description: 文字還原正確率
+                          image:
+                            type: number
+                            description: 圖片擷取成功率
+                          coverage:
+                            type: number
+                            description: 元素涵蓋率
+                          slides:
+                            type: array
+                            description: 每頁準確率明細
+                            items:
+                              type: object
+                              required:
+                                - index
+                                - coverage
+                                - text
+                                - image
+                                - overall
+                              properties:
+                                index:
+                                  type: integer
+                                coverage:
+                                  type: number
+                                text:
+                                  type: number
+                                image:
+                                  type: number
+                                overall:
+                                  type: number
+                      inventory:
+                        type: array
+                        description: 逐頁來源元素清單（對照面板用）
+                        items:
+                          type: object
+                          required:
+                            - index
+                            - elements
+                          properties:
+                            index:
+                              type: integer
+                            elements:
+                              type: array
+                              items:
+                                type: object
+                                required:
+                                  - kind
+                                  - restored
+                                properties:
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - text
+                                      - image
+                                      - table
+                                      - unsupported
+                                  restored:
+                                    type: boolean
+                                    description: 是否成功還原到 HTML
+                                  text:
+                                    type: string
+                                    nullable: true
+                                  image:
+                                    type: string
+                                    nullable: true
+                                    description: 圖片 data URI（成功擷取時）
+                                  tableCells:
+                                    type: array
+                                    nullable: true
+                                    items:
+                                      type: array
+                                      items:
+                                        type: string
+                                  unsupportedType:
+                                    type: string
+                                    nullable: true
+                                    description: 未支援元素型別（chart / smartArt 等）
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/NoToken'
+        '404':
+          description: 找不到文章
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: 找不到指定的文章
+                code: ARTICLE_NOT_FOUND
+                timestamp: '2026-06-05T00:00:00.000Z'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /conversion-jobs:
+    get:
+      tags:
+        - Articles
+      summary: 轉換批次紀錄列表（分頁）
+      description: 取得各次攝取批次的觸發方式、起迄時間與成功/失敗檔數，依時間倒序。
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: 查詢成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - timestamp
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required:
+                      - items
+                      - meta
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                            - trigger
+                            - startedAt
+                            - finishedAt
+                            - filesScanned
+                            - filesConverted
+                            - filesFailed
+                            - detail
+                            - createdAt
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            trigger:
+                              type: string
+                              enum:
+                                - scheduled
+                                - manual
+                            startedAt:
+                              type: string
+                              format: date-time
+                            finishedAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            filesScanned:
+                              type: integer
+                            filesConverted:
+                              type: integer
+                            filesFailed:
+                              type: integer
+                            createdAt:
+                              type: string
+                              format: date-time
+                            detail:
+                              type: array
+                              items:
+                                type: object
+                                required:
+                                  - filename
+                                  - status
+                                properties:
+                                  filename:
+                                    type: string
+                                  status:
+                                    type: string
+                                    enum:
+                                      - success
+                                      - failed
+                                  articleId:
+                                    type: string
+                                    format: uuid
+                                    nullable: true
+                                  accuracyOverall:
+                                    type: number
+                                    nullable: true
+                                  error:
+                                    type: string
+                                    nullable: true
+                      meta:
+                        type: object
+                        required:
+                          - page
+                          - limit
+                          - total
+                          - totalPages
+                        properties:
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+                          total:
+                            type: integer
+                          totalPages:
+                            type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/NoToken'
+        '500':
+          $ref: '#/components/responses/InternalServerError'

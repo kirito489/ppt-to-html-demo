@@ -54,8 +54,8 @@
 
 ## 8. Swagger / api-client
 
-- [ ] 8.1 新增 articles 端點 swagger yaml（inline shape，不用 `SuccessResponse $ref`）並掛到 `openapi.yaml`
-- [ ] 8.2 `pnpm --filter @app/api swagger:bundle` + `pnpm --filter @app/api-client generate` 同步型別
+- [x] 8.1 新增 articles 端點 swagger yaml（inline shape，不用 `SuccessResponse $ref`）並掛到 `openapi.yaml`
+- [x] 8.2 `pnpm --filter @app/api swagger:bundle` + `pnpm --filter @app/api-client generate` 同步型別
 
 ## 9. 前端文章功能
 

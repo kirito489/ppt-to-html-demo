@@ -1,0 +1,56 @@
+tags: [Articles]
+summary: 手動觸發一次攝取
+description: |
+  立即掃描來源資料夾（模擬公槽）、轉換所有 .pptx、存檔並依策略處置來源檔，
+  回傳本批次結果摘要。demo 方便用，正式由排程自動執行。
+
+security:
+  - bearerAuth: []
+
+responses:
+  '200':
+    description: 攝取完成
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [success, data, timestamp]
+          properties:
+            success: { type: boolean, example: true }
+            data:
+              type: object
+              required:
+                - id
+                - trigger
+                - startedAt
+                - finishedAt
+                - filesScanned
+                - filesConverted
+                - filesFailed
+                - detail
+                - createdAt
+              properties:
+                id: { type: string, format: uuid }
+                trigger: { type: string, enum: [scheduled, manual] }
+                startedAt: { type: string, format: date-time }
+                finishedAt: { type: string, format: date-time, nullable: true }
+                filesScanned: { type: integer }
+                filesConverted: { type: integer }
+                filesFailed: { type: integer }
+                createdAt: { type: string, format: date-time }
+                detail:
+                  type: array
+                  items:
+                    type: object
+                    required: [filename, status]
+                    properties:
+                      filename: { type: string }
+                      status: { type: string, enum: [success, failed] }
+                      articleId: { type: string, format: uuid, nullable: true }
+                      accuracyOverall: { type: number, nullable: true }
+                      error: { type: string, nullable: true }
+            timestamp: { type: string, format: date-time }
+  '401':
+    $ref: '../openapi.yaml#/components/responses/NoToken'
+  '500':
+    $ref: '../openapi.yaml#/components/responses/InternalServerError'
